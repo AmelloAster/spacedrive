@@ -5,7 +5,6 @@ mod prisma_crdt;
 
 use ::prisma_crdt::CRDTOperation;
 use prisma::PrismaClient;
-// use serde_json::json;
 
 use crate::prisma_crdt::new_client;
 use serde_json::json;
@@ -93,16 +92,6 @@ async fn producer_example(client: PrismaClient, node: prisma::node::Data) {
 		.exec()
 		.await
 		.unwrap();
-
-	dbg!(
-		client
-			.file()
-			.find_many(vec![prisma_crdt::file::tag_on_file::some(vec![
-				prisma_crdt::tag_on_file::tag_id::equals(tag.local_id)
-			])])
-			.exec()
-			.await
-	);
 
 	client
 		.tag()
@@ -232,6 +221,19 @@ async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
 				"ri": [0],
 				"rg": [0],
 				"d": "c"
+			}))
+			.unwrap(),
+		)
+		.await;
+
+	client
+		._execute_operation(
+			serde_json::from_value(json!({
+			  "n": [0],
+			  "t": 0,
+			  "r": [0],
+			  "m": "Tag",
+			  "d": "d"
 			}))
 			.unwrap(),
 		)

@@ -822,11 +822,12 @@ pub mod tag {
 			self.client.client.tag().find_many(params)
 		}
 
-		pub fn delete(
-			self,
-			param: crate::prisma::tag::UniqueWhereParam,
-		) -> crate::prisma::tag::Delete<'a> {
-			self.client.client.tag().delete(param)
+		pub fn delete(self, param: crate::prisma::tag::UniqueWhereParam) -> Delete<'a> {
+			Delete {
+				client: self.client,
+				r#where: param,
+				with_params: vec![],
+			}
 		}
 	}
 }
@@ -1074,7 +1075,7 @@ pub mod _prisma {
 			}
 		}
 
-		pub async fn _execute_operation(&self, op: ::prisma_crdt::CRDTOperation) {
+		pub async fn _execute_operation(&self, op: prisma_crdt::CRDTOperation) {
 			let prisma_crdt::CRDTOperation {
 				node,
 				timestamp,
@@ -1146,6 +1147,14 @@ pub mod _prisma {
 										field_1,
 										_params.into_iter().map(Into::into).collect(),
 									)
+									.exec()
+									.await
+									.unwrap();
+							}
+							prisma_crdt::SharedOperationData::Delete => {
+								self.client
+									.tag()
+									.delete(super::tag::id::equals(record_id.clone()))
 									.exec()
 									.await
 									.unwrap();
