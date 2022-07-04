@@ -36,8 +36,8 @@ async fn main() {
 		.await
 		.unwrap();
 
-	producer_example(client, node_0).await;
-	// consumer_example(client, node_1).await;
+	// producer_example(client, node_0).await;
+	consumer_example(client, node_1).await;
 }
 
 async fn producer_example(client: PrismaClient, node: prisma::node::Data) {
@@ -97,12 +97,19 @@ async fn producer_example(client: PrismaClient, node: prisma::node::Data) {
 	dbg!(
 		client
 			.file()
-			.find_many(vec![prisma::file::tag_on_file::some(vec![
-				prisma::tag_on_file::tag_id::equals(tag.local_id)
+			.find_many(vec![prisma_crdt::file::tag_on_file::some(vec![
+				prisma_crdt::tag_on_file::tag_id::equals(tag.local_id)
 			])])
 			.exec()
 			.await
 	);
+
+	client
+		.tag()
+		.delete(prisma_crdt::tag::local_id::equals(tag.local_id))
+		.exec()
+		.await
+		.unwrap();
 }
 
 async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
@@ -146,11 +153,13 @@ async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
 	client
 		._execute_operation(
 			serde_json::from_value(json!({
-			  "n": [0],
-			  "t": 0,
-			  "r": [0],
-			  "m": "File",
-			  "c": "a"
+				"n": [0],
+				"t": 0,
+				"r": [0],
+				"m": "File",
+				"d": {
+					"c": "a"
+				}
 			}))
 			.unwrap(),
 		)
@@ -159,14 +168,16 @@ async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
 	client
 		._execute_operation(
 			serde_json::from_value(json!({
-			  "n": [0],
-			  "t": 0,
-			  "r": [0],
-			  "m": "File",
-			  "u": {
-				"f": "size_in_bytes",
-				"v": 100
-			  }
+				"n": [0],
+				"t": 0,
+				"r": [0],
+				"m": "File",
+				"d": {
+					"u": {
+						"f": "size_in_bytes",
+						"v": 100
+					}
+				}
 			}))
 			.unwrap(),
 		)
@@ -195,16 +206,18 @@ async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
 	client
 		._execute_operation(
 			serde_json::from_value(json!({
-			  "n": [0],
-			  "t": 0,
-			  "r": [0],
-			  "m": "Tag",
-			  "c": {
-				"u": {
-				  "id": [0],
-				  "name": "Tag 0"
+				"n": [0],
+				"t": 0,
+				"r": [0],
+				"m": "Tag",
+				"d": {
+					"c": {
+						"u": {
+							"id": [0],
+							"name": "Tag 0"
+						}
+					}
 				}
-			  }
 			}))
 			.unwrap(),
 		)
@@ -213,12 +226,12 @@ async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
 	client
 		._execute_operation(
 			serde_json::from_value(json!({
-			  "n": [0],
-			  "t": 0,
-			  "relation": "TagOnFile",
-			  "relation_item": [0],
-			  "relation_group": [0],
-			  "type": "c"
+				"n": [0],
+				"t": 0,
+				"r": "TagOnFile",
+				"ri": [0],
+				"rg": [0],
+				"d": "c"
 			}))
 			.unwrap(),
 		)
@@ -228,4 +241,5 @@ async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
 	dbg!(client.file_path().find_many(vec![]).exec().await);
 	dbg!(client.file().find_many(vec![]).exec().await);
 	dbg!(client.tag().find_many(vec![]).exec().await);
+	dbg!(client.tag_on_file().find_many(vec![]).exec().await);
 }

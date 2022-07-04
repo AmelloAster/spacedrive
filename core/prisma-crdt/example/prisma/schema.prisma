@@ -32,8 +32,9 @@ model SharedOperation {
     record_id Bytes
 
     // the type of operation - c, u{field name}, d
-    kind String
-    data Bytes
+    kind  String
+    model String
+    data  Bytes
 
     node_id Int
     node    Node @relation(fields: [node_id], references: [local_id])
@@ -140,10 +141,10 @@ model Tag {
 /// @relation(item: file, group: tag)
 model TagOnFile {
     tag_id Int
-    tag    Tag @relation(fields: [tag_id], references: [local_id])
+    tag    Tag @relation(fields: [tag_id], references: [local_id], onDelete: Cascade)
 
     file_id Int
-    file    File @relation(fields: [file_id], references: [local_id])
+    file    File @relation(fields: [file_id], references: [local_id], onDelete: Cascade)
 
     @@id([tag_id, file_id])
     @@map("tags_on_files")

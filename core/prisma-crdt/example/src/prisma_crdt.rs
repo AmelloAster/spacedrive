@@ -116,42 +116,17 @@ pub mod location {
 				.exec()
 				.await;
 
-			let op = {
-				let set_params_map = match serde_json::to_value(set_params).unwrap() {
-					serde_json::Value::Object(m) => m,
-					_ => unreachable!(),
-				};
-
-				use prisma::owned_operation::*;
-
-				let op = prisma_crdt::OwnedOperation {
-					model: "Location".to_string(),
-					data: vec![prisma_crdt::OwnedOperationData::Create(set_params_map)],
-				};
-
-				client
-					.client
-					.owned_operation()
-					.create(
-						vec![], // TODO: use HLC timestamp
-						serde_json::to_vec(&op).unwrap(),
-						prisma::node::local_id::equals(client.node_local_id), // TODO: Use actual node local ID,
-						vec![],
-					)
-					.exec()
-					.await
-					.unwrap();
-
-				op
+			let set_params_map = match serde_json::to_value(set_params).unwrap() {
+				serde_json::Value::Object(m) => m,
+				_ => unreachable!(),
 			};
 
-			let op = prisma_crdt::CRDTOperation::new(
-				self.client.node_id.clone(), // TODO: Use actual node local ID
-				uhlc::NTP64(0),
-				prisma_crdt::CRDTOperationType::Owned(op),
-			);
-
-			client._send_operation(op).await;
+			client
+				._create_operation(::prisma_crdt::CRDTOperationType::owned(
+					"Location",
+					vec![prisma_crdt::OwnedOperationData::Create(set_params_map)],
+				))
+				.await;
 
 			res
 		}
@@ -320,7 +295,7 @@ pub mod file_path {
 				.exec()
 				.await?;
 
-			let op = {
+			let set_params_map = {
 				let CreateParams {
 					id: field_0,
 					location_id: field_1,
@@ -328,7 +303,7 @@ pub mod file_path {
 					_params,
 				} = set_params;
 
-				let set_params_map = match serde_json::to_value(CRDTCreateParams {
+				match serde_json::to_value(CRDTCreateParams {
 					id: field_0,
 					location_id: res.location().unwrap().id.clone(),
 					name: field_2,
@@ -338,38 +313,13 @@ pub mod file_path {
 				{
 					serde_json::Value::Object(m) => m,
 					_ => unreachable!(),
-				};
-
-				{
-					use prisma::owned_operation::*;
-
-					let op = prisma_crdt::OwnedOperation {
-						model: "FilePath".to_string(),
-						data: vec![prisma_crdt::OwnedOperationData::Create(set_params_map)],
-					};
-
-					client
-						.client
-						.owned_operation()
-						.create(
-							vec![0], // TODO: use HLC timestamp
-							serde_json::to_vec(&op).unwrap(),
-							prisma::node::local_id::equals(client.node_local_id), // TODO: Use actual node local ID,
-							vec![],
-						)
-						.exec()
-						.await
-						.unwrap();
-
-					op
 				}
 			};
 
 			client
-				._send_operation(prisma_crdt::CRDTOperation::new(
-					self.client.node_id.clone(), // TODO: Use actual node local ID
-					uhlc::NTP64(0),
-					prisma_crdt::CRDTOperationType::Owned(op),
+				._create_operation(prisma_crdt::CRDTOperationType::owned(
+					"FilePath",
+					vec![prisma_crdt::OwnedOperationData::Create(set_params_map)],
 				))
 				.await;
 
@@ -412,7 +362,7 @@ pub mod file_path {
 						..
 					} = data.clone();
 
-					let update_params_map = match serde_json::to_value(CRDTUpdateParams {
+					let update_params_map = match ::serde_json::to_value(CRDTUpdateParams {
 						location_id: field_0.unwrap().id,
 						id: field_1,
 						_params: set_params.into_iter().map(SetParam::into_crdt).collect(),
@@ -423,34 +373,10 @@ pub mod file_path {
 						_ => unreachable!(),
 					};
 
-					let op = {
-						use prisma::owned_operation::*;
-
-						let op = prisma_crdt::OwnedOperation {
-							model: "FilePath".to_string(),
-							data: vec![prisma_crdt::OwnedOperationData::Update(update_params_map)],
-						};
-
-						client
-							.client
-							.owned_operation()
-							.create(
-								vec![], // TODO: use HLC timestamp
-								serde_json::to_vec(&op).unwrap(),
-								prisma::node::local_id::equals(client.node_local_id), // TODO: Use actual node local ID,
-								vec![],
-							)
-							.exec()
-							.await
-							.unwrap();
-						op
-					};
-
 					client
-						._send_operation(prisma_crdt::CRDTOperation::new(
-							self.client.node_id.clone(),
-							uhlc::NTP64(0),
-							prisma_crdt::CRDTOperationType::Owned(op),
+						._create_operation(::prisma_crdt::CRDTOperationType::owned(
+							"FilePath",
+							vec![::prisma_crdt::OwnedOperationData::Update(update_params_map)],
 						))
 						.await;
 
@@ -513,7 +439,6 @@ pub mod file_path {
 	}
 }
 pub mod file {
-	use super::{file_path::CRDTUpdateParams, *};
 	pub use crate::prisma::file::*;
 
 	#[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -559,18 +484,18 @@ pub mod file {
 		SetSizeInBytes(i32),
 	}
 
-	impl Into<prisma::file::SetParam> for CRDTSetParam {
-		fn into(self) -> prisma::file::SetParam {
+	impl Into<crate::prisma::file::SetParam> for CRDTSetParam {
+		fn into(self) -> crate::prisma::file::SetParam {
 			match self {
-				CRDTSetParam::SetLocalId(v) => prisma::file::local_id::set(v),
-				CRDTSetParam::SetCasId(v) => prisma::file::cas_id::set(v),
-				CRDTSetParam::SetSizeInBytes(v) => prisma::file::size_in_bytes::set(v),
+				CRDTSetParam::SetLocalId(v) => crate::prisma::file::local_id::set(v),
+				CRDTSetParam::SetCasId(v) => crate::prisma::file::cas_id::set(v),
+				CRDTSetParam::SetSizeInBytes(v) => crate::prisma::file::size_in_bytes::set(v),
 			}
 		}
 	}
 
 	pub struct Create<'a> {
-		client: &'a _prisma::PrismaCRDTClient,
+		client: &'a super::_prisma::PrismaCRDTClient,
 		set_params: CreateParams,
 		with_params: Vec<crate::prisma::file::WithParam>,
 	}
@@ -620,33 +545,13 @@ pub mod file {
 			};
 
 			// Write + send create operation
-			{
-				client
-					.client
-					.shared_operation()
-					.create(
-						vec![],
-						sync_id.clone(),
-						"c".to_string(),
-						vec![],
-						super::node::local_id::equals(client.node_local_id),
-						vec![],
-					)
-					.exec()
-					.await;
-
-				let op = prisma_crdt::CRDTOperation::new(
-					self.client.node_id.clone(),
-					uhlc::NTP64(0),
-					prisma_crdt::CRDTOperationType::shared(
-						sync_id.clone(),
-						"File",
-						prisma_crdt::SharedOperationData::create_atomic(),
-					),
-				);
-
-				client._send_operation(op).await;
-			}
+			client
+				._create_operation(prisma_crdt::CRDTOperationType::shared(
+					sync_id.clone(),
+					"File",
+					prisma_crdt::SharedOperationData::create_atomic(),
+				))
+				.await;
 
 			let CreateParams { _params, .. } = set_params;
 			// Write + send atomic update operations
@@ -660,14 +565,10 @@ pub mod file {
 
 				for (key, value) in param_map {
 					client
-						._send_operation(prisma_crdt::CRDTOperation::new(
-							self.client.node_id.clone(),
-							uhlc::NTP64(0),
-							prisma_crdt::CRDTOperationType::shared(
-								sync_id.clone(),
-								"File",
-								prisma_crdt::SharedOperationData::update(key, value),
-							),
+						._create_operation(prisma_crdt::CRDTOperationType::shared(
+							sync_id.clone(),
+							"File",
+							prisma_crdt::SharedOperationData::update(key, value),
 						))
 						.await;
 				}
@@ -678,7 +579,7 @@ pub mod file {
 	}
 
 	pub struct Actions<'a> {
-		pub(super) client: &'a _prisma::PrismaCRDTClient,
+		pub(super) client: &'a super::_prisma::PrismaCRDTClient,
 	}
 
 	impl<'a> Actions<'a> {
@@ -835,22 +736,51 @@ pub mod tag {
 					_ => unreachable!(),
 				};
 
-				{
-					use prisma::shared_operation::*;
-
-					let op = prisma_crdt::CRDTOperation::new(
-						self.client.node_id.clone(),
-						uhlc::NTP64(0),
-						prisma_crdt::CRDTOperationType::shared(
-							sync_id.clone(),
-							"Tag",
-							prisma_crdt::SharedOperationData::create_unique(set_params_map),
-						),
-					);
-
-					client._send_operation(op).await;
-				}
+				client
+					._create_operation(prisma_crdt::CRDTOperationType::shared(
+						sync_id.clone(),
+						"Tag",
+						prisma_crdt::SharedOperationData::create_unique(set_params_map),
+					))
+					.await;
 			};
+
+			res
+		}
+	}
+
+	pub struct Delete<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		r#where: crate::prisma::tag::UniqueWhereParam,
+		with_params: Vec<crate::prisma::tag::WithParam>,
+	}
+
+	impl<'a> Delete<'a> {
+		pub fn with(mut self, param: crate::prisma::tag::WithParam) -> Self {
+			self.with_params.push(param);
+			self
+		}
+
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::tag::Data>, crate::prisma::QueryError> {
+			let Self {
+				client, r#where, .. // TODO: honor with params
+			} = self;
+
+			let res = client.client.tag().delete(r#where).exec().await;
+
+			if let Ok(Some(res)) = &res {
+				let sync_id = res.id.clone();
+
+				self.client
+					._create_operation(::prisma_crdt::CRDTOperationType::shared(
+						sync_id,
+						"Tag",
+						::prisma_crdt::SharedOperationData::delete(),
+					))
+					.await;
+			}
 
 			res
 		}
@@ -891,6 +821,13 @@ pub mod tag {
 		) -> crate::prisma::tag::FindMany<'a> {
 			self.client.client.tag().find_many(params)
 		}
+
+		pub fn delete(
+			self,
+			param: crate::prisma::tag::UniqueWhereParam,
+		) -> crate::prisma::tag::Delete<'a> {
+			self.client.client.tag().delete(param)
+		}
 	}
 }
 pub mod node {
@@ -899,7 +836,7 @@ pub mod node {
 }
 pub mod tag_on_file {
 	use super::{file_path::CRDTUpdateParams, *};
-	pub use crate::prisma::file::*;
+	pub use crate::prisma::tag_on_file::*;
 
 	#[derive(Clone, serde::Serialize, serde::Deserialize)]
 	pub enum SetParam {
@@ -1035,36 +972,14 @@ pub mod tag_on_file {
 			};
 
 			// Write + send create operation
-			{
-				client
-					.client
-					.relation_operation()
-					.create(
-						vec![],
-						"TagOnFile".to_string(),
-						relation_item.clone(),
-						relation_group.clone(),
-						"c".to_string(),
-						vec![],
-						super::node::local_id::equals(client.node_local_id),
-						vec![],
-					)
-					.exec()
-					.await;
-
-				let op = prisma_crdt::CRDTOperation::new(
-					self.client.node_id.clone(),
-					uhlc::NTP64(0),
-					prisma_crdt::CRDTOperationType::relation(
-						"TagOnFile",
-						relation_item,
-						relation_group,
-						prisma_crdt::RelationOperationData::create(),
-					),
-				);
-
-				client._send_operation(op).await;
-			}
+			client
+				._create_operation(prisma_crdt::CRDTOperationType::relation(
+					"TagOnFile",
+					relation_item,
+					relation_group,
+					prisma_crdt::RelationOperationData::create(),
+				))
+				.await;
 
 			// let CreateParams { _params, .. } = set_params;
 			// // Write + send atomic update operations
@@ -1119,20 +1034,21 @@ pub mod tag_on_file {
 
 		pub fn find_unique(
 			self,
-			param: crate::prisma::file::UniqueWhereParam,
-		) -> crate::prisma::file::FindUnique<'a> {
-			self.client.client.file().find_unique(param)
+			param: crate::prisma::tag_on_file::UniqueWhereParam,
+		) -> crate::prisma::tag_on_file::FindUnique<'a> {
+			self.client.client.tag_on_file().find_unique(param)
 		}
 
 		pub fn find_many(
 			self,
-			params: Vec<crate::prisma::file::WhereParam>,
-		) -> crate::prisma::file::FindMany<'a> {
-			self.client.client.file().find_many(params)
+			params: Vec<crate::prisma::tag_on_file::WhereParam>,
+		) -> crate::prisma::tag_on_file::FindMany<'a> {
+			self.client.client.tag_on_file().find_many(params)
 		}
 	}
 }
 pub mod _prisma {
+	use prisma_crdt::CRDTOperation;
 	use tokio::sync::mpsc::error::SendError;
 
 	use super::*;
@@ -1158,14 +1074,7 @@ pub mod _prisma {
 			}
 		}
 
-		pub(super) async fn _send_operation(
-			&self,
-			op: prisma_crdt::CRDTOperation,
-		) -> Result<(), SendError<prisma_crdt::CRDTOperation>> {
-			self.operation_sender.send(op).await
-		}
-
-		pub async fn _execute_operation(&self, op: prisma_crdt::CRDTOperation) {
+		pub async fn _execute_operation(&self, op: ::prisma_crdt::CRDTOperation) {
 			let prisma_crdt::CRDTOperation {
 				node,
 				timestamp,
@@ -1243,7 +1152,6 @@ pub mod _prisma {
 							}
 							_ => todo!(),
 						},
-
 						_ => {}
 					}
 				}
@@ -1350,8 +1258,146 @@ pub mod _prisma {
 						_ => todo!(),
 					}
 				}
-				_ => todo!(),
+				prisma_crdt::CRDTOperationType::Relation(op) => {
+					let prisma_crdt::RelationOperation {
+						relation,
+						relation_item,
+						relation_group,
+						data,
+					} = op;
+
+					match relation.as_str() {
+						"TagOnFile" => {
+							let field_0 = self
+								.client
+								.tag()
+								.find_unique(prisma::tag::id::equals(relation_item.clone()))
+								.exec()
+								.await
+								.unwrap()
+								.unwrap()
+								.local_id;
+
+							let field_1 = self
+								.client
+								.file()
+								.find_unique(prisma::file::cas_id::equals(relation_group.clone()))
+								.exec()
+								.await
+								.unwrap()
+								.unwrap()
+								.local_id;
+
+							match data {
+								prisma_crdt::RelationOperationData::Create => {
+									self.client
+										.tag_on_file()
+										.upsert(
+											crate::prisma::tag_on_file::tag_id_file_id(
+												field_0, field_1,
+											),
+											(
+												crate::prisma::tag::id::equals(relation_group),
+												crate::prisma::file::cas_id::equals(relation_item),
+												vec![],
+											),
+											vec![],
+										)
+										.exec()
+										.await;
+								}
+								_ => todo!(),
+							}
+						}
+						_ => todo!(),
+					}
+				}
 			}
+		}
+
+		pub async fn _create_operation(&self, typ: ::prisma_crdt::CRDTOperationType) {
+			let timestamp = ::uhlc::NTP64(0); // TODO: actual timestamps
+
+			let timestamp_bytes = vec![0];
+
+			use prisma_crdt::*;
+
+			match &typ {
+				CRDTOperationType::Shared(SharedOperation {
+					record_id,
+					model,
+					data,
+				}) => {
+					let (kind, data) = match data {
+						SharedOperationData::Create(typ) => {
+							("c".to_string(), serde_json::to_vec(typ).unwrap())
+						}
+						SharedOperationData::Update { field, value } => {
+							("u".to_string() + field, serde_json::to_vec(value).unwrap())
+						}
+						SharedOperationData::Delete => ("d".to_string(), vec![]),
+					};
+
+					self.client
+						.shared_operation()
+						.create(
+							timestamp_bytes,
+							record_id.clone(),
+							kind,
+							model.to_string(),
+							data,
+							crate::prisma::node::local_id::equals(self.node_local_id),
+							vec![],
+						)
+						.exec()
+						.await;
+				}
+				CRDTOperationType::Owned(op) => {
+					self.client
+						.owned_operation()
+						.create(
+							timestamp_bytes,
+							serde_json::to_vec(op).unwrap(),
+							crate::prisma::node::local_id::equals(self.node_local_id),
+							vec![],
+						)
+						.exec()
+						.await;
+				}
+				CRDTOperationType::Relation(RelationOperation {
+					relation,
+					relation_item,
+					relation_group,
+					data,
+				}) => {
+					let (kind, data) = match data {
+						RelationOperationData::Create => ("c".to_string(), vec![]),
+						RelationOperationData::Update { field, value } => {
+							("u".to_string() + field, serde_json::to_vec(value).unwrap())
+						}
+						RelationOperationData::Delete => ("d".to_string(), vec![]),
+					};
+
+					self.client
+						.relation_operation()
+						.create(
+							timestamp_bytes,
+							relation.to_string(),
+							relation_item.clone(),
+							relation_group.clone(),
+							kind,
+							data,
+							crate::prisma::node::local_id::equals(self.node_local_id),
+							vec![],
+						)
+						.exec()
+						.await;
+				}
+			}
+
+			let op = CRDTOperation::new(self.node_id.clone(), timestamp, typ);
+
+			self.operation_sender.send(op).await;
 		}
 
 		pub fn node(&self) -> prisma::node::Actions {

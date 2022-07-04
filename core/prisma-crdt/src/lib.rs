@@ -70,6 +70,13 @@ impl CRDTOperationType {
 			data,
 		))
 	}
+
+	pub fn owned(model: &str, data: Vec<OwnedOperationData>) -> Self {
+		Self::Owned(OwnedOperation {
+			model: model.to_string(),
+			data,
+		})
+	}
 }
 
 pub struct CRDTStore<Database> {

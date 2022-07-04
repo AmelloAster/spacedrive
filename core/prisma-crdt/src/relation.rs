@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Id, SerializedField};
+use crate::Id;
 
 /// An operation on a many relation CRDT.
 /// Many relations are identified by their `relation` (db table),
@@ -80,18 +80,4 @@ impl RelationOperationData {
 	pub fn delete() -> Self {
 		Self::Delete
 	}
-}
-
-pub trait RelationRecord {
-	type Field: Into<SerializedField>;
-
-	const RELATION_NAME: &'static str;
-
-	fn create_operation(relation_item: Id, relation_group: Id) -> RelationOperation;
-	fn update_operation(
-		relation_item: Id,
-		relation_group: Id,
-		field: Self::Field,
-	) -> RelationOperation;
-	fn delete_operation(relation_item: Id, relation_group: Id) -> RelationOperation;
 }

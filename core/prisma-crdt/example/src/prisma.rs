@@ -19,7 +19,7 @@ pub use prisma_client_rust::{queries::Error as QueryError, NewClientError};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
-static DATAMODEL_STR : & 'static str = "datasource db {\n    provider = \"sqlite\"\n    url      = \"file:dev.db\"\n}\n\ngenerator client {\n    provider = \"cargo prisma\"\n    output   = \"../src/prisma.rs\"\n}\n\n// generator crdt {\n//     provider = \"cargo prisma-crdt\"\n//     output   = \"../src/_prisma-crdt.rs\"\n// }\n\n/// @local\nmodel OwnedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    data      Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"shared_operations\")\n}\n\n/// @local\nmodel SharedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    record_id Bytes\n\n    // the type of operation - c, u{field name}, d\n    kind String\n    data Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"relation_operation\")\n}\n\n/// @local\nmodel RelationOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n\n    relation       String\n    relation_item  Bytes\n    relation_group Bytes\n\n    kind String\n    data Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n}\n\n/// @local(id: id)\nmodel Node {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    locations Location[]\n\n    owned_operations    OwnedOperation[]\n    shared_operations   SharedOperation[]\n    relation_operations RelationOperation[]\n\n    @@map(\"nodes\")\n}\n\n// @owned(owner: node, id: id)\nmodel Location {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id]) // @node\n\n    name String\n\n    file_paths FilePath[]\n\n    @@map(\"locations\")\n}\n\n/// @owned(owner: location)\nmodel FilePath {\n    id Int\n\n    location_id Int\n    location    Location @relation(fields: [location_id], references: [local_id])\n\n    parent_id Int?\n    parent    FilePath? @relation(\"directory_file_paths\", fields: [location_id, parent_id], references: [location_id, id])\n\n    file_id Int?\n    File    File? @relation(fields: [file_id], references: [local_id])\n\n    name String\n\n    children FilePath[] @relation(\"directory_file_paths\")\n\n    @@id([location_id, id])\n    @@map(\"file_paths\")\n}\n\n/// A unique record that can represent multiple physical copies of a file.\n/// Existence is implied based on an equivalent file path existing, and could be\n/// created multiple times.\n///\n/// @shared(id: cas_id, create: Atomic)\nmodel File {\n    local_id Int   @id @default(autoincrement())\n    cas_id   Bytes @unique\n\n    size_in_bytes Int @default(0)\n\n    file_paths FilePath[]\n    TagOnFile  TagOnFile[]\n\n    @@map(\"files\")\n}\n\n/// @shared(id: id, create: Unique)\nmodel Tag {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    TagOnFile TagOnFile[]\n    @@map(\"tags\")\n}\n\n/// @relation(item: file, group: tag)\nmodel TagOnFile {\n    tag_id Int\n    tag    Tag @relation(fields: [tag_id], references: [local_id])\n\n    file_id Int\n    file    File @relation(fields: [file_id], references: [local_id])\n\n    @@id([tag_id, file_id])\n    @@map(\"tags_on_files\")\n}\n" ;
+static DATAMODEL_STR : & 'static str = "datasource db {\n    provider = \"sqlite\"\n    url      = \"file:dev.db\"\n}\n\ngenerator client {\n    provider = \"cargo prisma\"\n    output   = \"../src/prisma.rs\"\n}\n\n// generator crdt {\n//     provider = \"cargo prisma-crdt\"\n//     output   = \"../src/_prisma-crdt.rs\"\n// }\n\n/// @local\nmodel OwnedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    data      Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"shared_operations\")\n}\n\n/// @local\nmodel SharedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    record_id Bytes\n\n    // the type of operation - c, u{field name}, d\n    kind  String\n    model String\n    data  Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"relation_operation\")\n}\n\n/// @local\nmodel RelationOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n\n    relation       String\n    relation_item  Bytes\n    relation_group Bytes\n\n    kind String\n    data Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n}\n\n/// @local(id: id)\nmodel Node {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    locations Location[]\n\n    owned_operations    OwnedOperation[]\n    shared_operations   SharedOperation[]\n    relation_operations RelationOperation[]\n\n    @@map(\"nodes\")\n}\n\n// @owned(owner: node, id: id)\nmodel Location {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id]) // @node\n\n    name String\n\n    file_paths FilePath[]\n\n    @@map(\"locations\")\n}\n\n/// @owned(owner: location)\nmodel FilePath {\n    id Int\n\n    location_id Int\n    location    Location @relation(fields: [location_id], references: [local_id])\n\n    parent_id Int?\n    parent    FilePath? @relation(\"directory_file_paths\", fields: [location_id, parent_id], references: [location_id, id])\n\n    file_id Int?\n    File    File? @relation(fields: [file_id], references: [local_id])\n\n    name String\n\n    children FilePath[] @relation(\"directory_file_paths\")\n\n    @@id([location_id, id])\n    @@map(\"file_paths\")\n}\n\n/// A unique record that can represent multiple physical copies of a file.\n/// Existence is implied based on an equivalent file path existing, and could be\n/// created multiple times.\n///\n/// @shared(id: cas_id, create: Atomic)\nmodel File {\n    local_id Int   @id @default(autoincrement())\n    cas_id   Bytes @unique\n\n    size_in_bytes Int @default(0)\n\n    file_paths FilePath[]\n    TagOnFile  TagOnFile[]\n\n    @@map(\"files\")\n}\n\n/// @shared(id: id, create: Unique)\nmodel Tag {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    TagOnFile TagOnFile[]\n    @@map(\"tags\")\n}\n\n/// @relation(item: file, group: tag)\nmodel TagOnFile {\n    tag_id Int\n    tag    Tag @relation(fields: [tag_id], references: [local_id], onDelete: Cascade)\n\n    file_id Int\n    file    File @relation(fields: [file_id], references: [local_id], onDelete: Cascade)\n\n    @@id([tag_id, file_id])\n    @@map(\"tags_on_files\")\n}\n" ;
 static DATABASE_STR: &'static str = "sqlite";
 pub async fn new_client() -> Result<_prisma::PrismaClient, NewClientError> {
 	let config = parse_configuration(DATAMODEL_STR)?.subject;
@@ -1047,6 +1047,56 @@ pub mod shared_operation {
 			}
 		}
 	}
+	pub mod model {
+		use super::super::*;
+		use super::_prisma::*;
+		use super::{Cursor, OrderByParam, SetParam, UniqueWhereParam, WhereParam, WithParam};
+		pub fn set<T: From<Set>>(value: String) -> T {
+			Set(value).into()
+		}
+		pub fn equals(value: String) -> WhereParam {
+			WhereParam::ModelEquals(value).into()
+		}
+		pub fn order(direction: Direction) -> OrderByParam {
+			OrderByParam::Model(direction)
+		}
+		pub fn in_vec(value: Vec<String>) -> WhereParam {
+			WhereParam::ModelInVec(value)
+		}
+		pub fn not_in_vec(value: Vec<String>) -> WhereParam {
+			WhereParam::ModelNotInVec(value)
+		}
+		pub fn lt(value: String) -> WhereParam {
+			WhereParam::ModelLt(value)
+		}
+		pub fn lte(value: String) -> WhereParam {
+			WhereParam::ModelLte(value)
+		}
+		pub fn gt(value: String) -> WhereParam {
+			WhereParam::ModelGt(value)
+		}
+		pub fn gte(value: String) -> WhereParam {
+			WhereParam::ModelGte(value)
+		}
+		pub fn contains(value: String) -> WhereParam {
+			WhereParam::ModelContains(value)
+		}
+		pub fn starts_with(value: String) -> WhereParam {
+			WhereParam::ModelStartsWith(value)
+		}
+		pub fn ends_with(value: String) -> WhereParam {
+			WhereParam::ModelEndsWith(value)
+		}
+		pub fn not(value: String) -> WhereParam {
+			WhereParam::ModelNot(value)
+		}
+		pub struct Set(pub String);
+		impl From<Set> for SetParam {
+			fn from(value: Set) -> Self {
+				Self::SetModel(value.0)
+			}
+		}
+	}
 	pub mod data {
 		use super::super::*;
 		use super::_prisma::*;
@@ -1165,13 +1215,21 @@ pub mod shared_operation {
 		}
 	}
 	pub fn _outputs() -> Vec<Selection> {
-		["id", "timestamp", "record_id", "kind", "data", "node_id"]
-			.into_iter()
-			.map(|o| {
-				let builder = Selection::builder(o);
-				builder.build()
-			})
-			.collect()
+		[
+			"id",
+			"timestamp",
+			"record_id",
+			"kind",
+			"model",
+			"data",
+			"node_id",
+		]
+		.into_iter()
+		.map(|o| {
+			let builder = Selection::builder(o);
+			builder.build()
+		})
+		.collect()
 	}
 	#[derive(Debug, Clone, Serialize, Deserialize)]
 	pub struct Data {
@@ -1183,6 +1241,8 @@ pub mod shared_operation {
 		pub record_id: Vec<u8>,
 		#[serde(rename = "kind")]
 		pub kind: String,
+		#[serde(rename = "model")]
+		pub model: String,
 		#[serde(rename = "data")]
 		pub data: Vec<u8>,
 		#[serde(rename = "node_id")]
@@ -1225,6 +1285,7 @@ pub mod shared_operation {
 		SetTimestamp(Vec<u8>),
 		SetRecordId(Vec<u8>),
 		SetKind(String),
+		SetModel(String),
 		SetData(Vec<u8>),
 		SetNodeId(i32),
 		IncrementNodeId(i32),
@@ -1272,6 +1333,7 @@ pub mod shared_operation {
 					("record_id".to_string(), PrismaValue::Bytes(value))
 				}
 				SetParam::SetKind(value) => ("kind".to_string(), PrismaValue::String(value)),
+				SetParam::SetModel(value) => ("model".to_string(), PrismaValue::String(value)),
 				SetParam::SetData(value) => ("data".to_string(), PrismaValue::Bytes(value)),
 				SetParam::SetNodeId(value) => {
 					("node_id".to_string(), PrismaValue::Int(value as i64))
@@ -1322,6 +1384,7 @@ pub mod shared_operation {
 		Timestamp(Direction),
 		RecordId(Direction),
 		Kind(Direction),
+		Model(Direction),
 		Data(Direction),
 		NodeId(Direction),
 	}
@@ -1341,6 +1404,10 @@ pub mod shared_operation {
 				),
 				Self::Kind(direction) => (
 					"kind".to_string(),
+					PrismaValue::String(direction.to_string()),
+				),
+				Self::Model(direction) => (
+					"model".to_string(),
 					PrismaValue::String(direction.to_string()),
 				),
 				Self::Data(direction) => (
@@ -1397,6 +1464,17 @@ pub mod shared_operation {
 		KindStartsWith(String),
 		KindEndsWith(String),
 		KindNot(String),
+		ModelEquals(String),
+		ModelInVec(Vec<String>),
+		ModelNotInVec(Vec<String>),
+		ModelLt(String),
+		ModelLte(String),
+		ModelGt(String),
+		ModelGte(String),
+		ModelContains(String),
+		ModelStartsWith(String),
+		ModelEndsWith(String),
+		ModelNot(String),
 		DataEquals(Vec<u8>),
 		DataInVec(Vec<Vec<u8>>),
 		DataNotInVec(Vec<Vec<u8>>),
@@ -1653,6 +1731,87 @@ pub mod shared_operation {
 						PrismaValue::String(value),
 					)]),
 				),
+				Self::ModelEquals(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"equals".to_string(),
+						PrismaValue::String(value),
+					)]),
+				),
+				Self::ModelInVec(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"in".to_string(),
+						PrismaValue::List(
+							value.into_iter().map(|v| PrismaValue::String(v)).collect(),
+						),
+					)]),
+				),
+				Self::ModelNotInVec(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"notIn".to_string(),
+						PrismaValue::List(
+							value.into_iter().map(|v| PrismaValue::String(v)).collect(),
+						),
+					)]),
+				),
+				Self::ModelLt(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"lt".to_string(),
+						PrismaValue::String(value),
+					)]),
+				),
+				Self::ModelLte(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"lte".to_string(),
+						PrismaValue::String(value),
+					)]),
+				),
+				Self::ModelGt(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"gt".to_string(),
+						PrismaValue::String(value),
+					)]),
+				),
+				Self::ModelGte(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"gte".to_string(),
+						PrismaValue::String(value),
+					)]),
+				),
+				Self::ModelContains(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"contains".to_string(),
+						PrismaValue::String(value),
+					)]),
+				),
+				Self::ModelStartsWith(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"startsWith".to_string(),
+						PrismaValue::String(value),
+					)]),
+				),
+				Self::ModelEndsWith(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"endsWith".to_string(),
+						PrismaValue::String(value),
+					)]),
+				),
+				Self::ModelNot(value) => (
+					"model".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"not".to_string(),
+						PrismaValue::String(value),
+					)]),
+				),
 				Self::DataEquals(value) => (
 					"data".to_string(),
 					SerializedWhereValue::Object(vec![(
@@ -1844,6 +2003,7 @@ pub mod shared_operation {
 			timestamp: Vec<u8>,
 			record_id: Vec<u8>,
 			kind: String,
+			model: String,
 			data: Vec<u8>,
 			node: super::node::UniqueWhereParam,
 			mut _params: Vec<SetParam>,
@@ -1851,6 +2011,7 @@ pub mod shared_operation {
 			_params.push(timestamp::set(timestamp));
 			_params.push(record_id::set(record_id));
 			_params.push(kind::set(kind));
+			_params.push(model::set(model));
 			_params.push(data::set(data));
 			_params.push(node::link(node));
 			Create::new(
@@ -1898,9 +2059,10 @@ pub mod shared_operation {
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			(timestamp, record_id, kind, data, node, mut _params): (
+			(timestamp, record_id, kind, model, data, node, mut _params): (
 				Vec<u8>,
 				Vec<u8>,
+				String,
 				String,
 				Vec<u8>,
 				super::node::UniqueWhereParam,
@@ -1911,6 +2073,7 @@ pub mod shared_operation {
 			_params.push(timestamp::set(timestamp));
 			_params.push(record_id::set(record_id));
 			_params.push(kind::set(kind));
+			_params.push(model::set(model));
 			_params.push(data::set(data));
 			_params.push(node::link(node));
 			Upsert::new(
@@ -9468,6 +9631,8 @@ pub mod _prisma {
 		RecordId,
 		#[serde(rename = "kind")]
 		Kind,
+		#[serde(rename = "model")]
+		Model,
 		#[serde(rename = "data")]
 		Data,
 		#[serde(rename = "node_id")]
@@ -9480,6 +9645,7 @@ pub mod _prisma {
 				Self::Timestamp => "timestamp".to_string(),
 				Self::RecordId => "record_id".to_string(),
 				Self::Kind => "kind".to_string(),
+				Self::Model => "model".to_string(),
 				Self::Data => "data".to_string(),
 				Self::NodeId => "node_id".to_string(),
 			}
