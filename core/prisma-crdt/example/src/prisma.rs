@@ -19,14 +19,14 @@ pub use prisma_client_rust::{queries::Error as QueryError, NewClientError};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
-static DATAMODEL_STR : & 'static str = "datasource db {\n    provider = \"sqlite\"\n    url      = \"file:dev.db\"\n}\n\ngenerator client {\n    provider = \"cargo prisma\"\n    output   = \"../src/prisma.rs\"\n}\n\n// generator crdt {\n//     provider = \"cargo prisma-crdt\"\n//     output   = \"../src/_prisma-crdt.rs\"\n// }\n\n/// @local\nmodel OwnedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    data      Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"shared_operations\")\n}\n\n/// @local\nmodel SharedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    record_id Bytes\n\n    // the type of operation - c, u{field name}, d\n    kind String\n    data Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"relation_operation\")\n}\n\n/// @local\nmodel RelationOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n\n    relation       String\n    relation_item  Bytes\n    relation_group Bytes\n\n    kind String\n    data Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n}\n\n/// @local(id: id)\nmodel Node {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    locations Location[]\n\n    owned_operations    OwnedOperation[]\n    shared_operations   SharedOperation[]\n    relation_operations RelationOperation[]\n\n    @@map(\"nodes\")\n}\n\n// @owned(owner: node, id: id)\nmodel Location {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id]) /// @node\n\n    name String\n\n    file_paths FilePath[]\n\n    @@map(\"locations\")\n}\n\n/// @owned(owner: location)\nmodel FilePath {\n    id Int \n\n    location_id Int\n    location    Location @relation(fields: [location_id], references: [local_id])\n\n    parent_id Int?\n    parent    FilePath? @relation(\"directory_file_paths\", fields: [location_id, parent_id], references: [location_id, id])\n\n    file_id Int?\n    File    File? @relation(fields: [file_id], references: [local_id])\n\n    name String\n\n    children FilePath[] @relation(\"directory_file_paths\")\n\n    @@id([location_id, id])\n    @@map(\"file_paths\")\n}\n\n/// A unique record that can represent multiple physical copies of a file.\n/// Existence is implied based on an equivalent file path existing, and could be\n/// created multiple times.\n///\n/// @shared(id: cas_id)\nmodel File {\n    local_id Int   @id @default(autoincrement())\n    cas_id   Bytes @unique\n\n    file_paths FilePath[]\n    TagOnFile  TagOnFile[]\n\n    @@map(\"files\")\n}\n\n/// @shared(id: id)\nmodel Tag {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String @default(\"\")\n\n    TagOnFile TagOnFile[]\n    @@map(\"tags\")\n}\n\n/// @relation(item: file, group: tag)\nmodel TagOnFile {\n    tag_id Int\n    tag    Tag @relation(fields: [tag_id], references: [local_id])\n\n    file_id Int\n    file    File @relation(fields: [file_id], references: [local_id])\n\n    @@id([tag_id, file_id])\n    @@map(\"tags_on_files\")\n}\n" ;
+static DATAMODEL_STR : & 'static str = "datasource db {\n    provider = \"sqlite\"\n    url      = \"file:dev.db\"\n}\n\ngenerator client {\n    provider = \"cargo prisma\"\n    output   = \"../src/prisma.rs\"\n}\n\n// generator crdt {\n//     provider = \"cargo prisma-crdt\"\n//     output   = \"../src/_prisma-crdt.rs\"\n// }\n\n/// @local\nmodel OwnedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    data      Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"shared_operations\")\n}\n\n/// @local\nmodel SharedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    record_id Bytes\n\n    // the type of operation - c, u{field name}, d\n    kind String\n    data Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"relation_operation\")\n}\n\n/// @local\nmodel RelationOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n\n    relation       String\n    relation_item  Bytes\n    relation_group Bytes\n\n    kind String\n    data Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n}\n\n/// @local(id: id)\nmodel Node {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    locations Location[]\n\n    owned_operations    OwnedOperation[]\n    shared_operations   SharedOperation[]\n    relation_operations RelationOperation[]\n\n    @@map(\"nodes\")\n}\n\n// @owned(owner: node, id: id)\nmodel Location {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id]) // @node\n\n    name String\n\n    file_paths FilePath[]\n\n    @@map(\"locations\")\n}\n\n/// @owned(owner: location)\nmodel FilePath {\n    id Int\n\n    location_id Int\n    location    Location @relation(fields: [location_id], references: [local_id])\n\n    parent_id Int?\n    parent    FilePath? @relation(\"directory_file_paths\", fields: [location_id, parent_id], references: [location_id, id])\n\n    file_id Int?\n    File    File? @relation(fields: [file_id], references: [local_id])\n\n    name String\n\n    children FilePath[] @relation(\"directory_file_paths\")\n\n    @@id([location_id, id])\n    @@map(\"file_paths\")\n}\n\n/// A unique record that can represent multiple physical copies of a file.\n/// Existence is implied based on an equivalent file path existing, and could be\n/// created multiple times.\n///\n/// @shared(id: cas_id, create: Atomic)\nmodel File {\n    local_id Int   @id @default(autoincrement())\n    cas_id   Bytes @unique\n\n    size_in_bytes Int @default(0)\n\n    file_paths FilePath[]\n    TagOnFile  TagOnFile[]\n\n    @@map(\"files\")\n}\n\n/// @shared(id: id, create: Unique)\nmodel Tag {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    TagOnFile TagOnFile[]\n    @@map(\"tags\")\n}\n\n/// @relation(item: file, group: tag)\nmodel TagOnFile {\n    tag_id Int\n    tag    Tag @relation(fields: [tag_id], references: [local_id])\n\n    file_id Int\n    file    File @relation(fields: [file_id], references: [local_id])\n\n    @@id([tag_id, file_id])\n    @@map(\"tags_on_files\")\n}\n" ;
 static DATABASE_STR: &'static str = "sqlite";
 pub async fn new_client() -> Result<_prisma::PrismaClient, NewClientError> {
 	let config = parse_configuration(DATAMODEL_STR)?.subject;
 	let source = config
 		.datasources
 		.first()
-		.expect("Pleasy supply a datasource in your schema.prisma file");
+		.expect("Please supply a datasource in your schema.prisma file");
 	let url = if let Some(url) = source.load_shadow_database_url()? {
 		url
 	} else {
@@ -51,7 +51,7 @@ pub async fn new_client_with_url(url: &str) -> Result<_prisma::PrismaClient, New
 	let source = config
 		.datasources
 		.first()
-		.expect("Pleasy supply a datasource in your schema.prisma file");
+		.expect("Please supply a datasource in your schema.prisma file");
 	let (db_name, executor) = executor::load(&source, &[], &url).await?;
 	let internal_model = InternalDataModelBuilder::new(DATAMODEL_STR).build(db_name);
 	let query_schema = Arc::new(schema_builder::build(
@@ -117,7 +117,7 @@ pub mod owned_operation {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetId(value.0)
@@ -146,7 +146,7 @@ pub mod owned_operation {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::TimestampNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetTimestamp(value.0)
@@ -175,7 +175,7 @@ pub mod owned_operation {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::DataNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetData(value.0)
@@ -228,7 +228,7 @@ pub mod owned_operation {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideNodeId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetNodeId(value.0)
@@ -245,24 +245,20 @@ pub mod owned_operation {
 		pub fn is_not(value: Vec<node::WhereParam>) -> WhereParam {
 			WhereParam::NodeIsNot(value)
 		}
-		pub struct Fetch {
-			args: node::UniqueArgs,
-		}
+		pub struct Fetch(pub node::UniqueArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<node::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::Node(fetch.args)
+				WithParam::Node(fetch.0)
 			}
 		}
 		pub fn fetch() -> Fetch {
-			Fetch {
-				args: node::UniqueArgs::new(),
-			}
+			Fetch(node::UniqueArgs::new())
 		}
 		pub fn link<T: From<Link>>(value: node::UniqueWhereParam) -> T {
 			Link(value).into()
@@ -756,6 +752,7 @@ pub mod owned_operation {
 	}
 	pub type UniqueArgs = prisma_client_rust::UniqueArgs<WithParam>;
 	pub type ManyArgs = prisma_client_rust::ManyArgs<WhereParam, WithParam, OrderByParam, Cursor>;
+	pub type Count<'a> = prisma_client_rust::Count<'a, WhereParam, OrderByParam, Cursor>;
 	pub type Create<'a> = prisma_client_rust::Create<'a, SetParam, WithParam, Data>;
 	pub type FindUnique<'a> =
 		prisma_client_rust::FindUnique<'a, WhereParam, WithParam, SetParam, Data>;
@@ -779,59 +776,106 @@ pub mod owned_operation {
 		pub client: &'a PrismaClient,
 	}
 	impl<'a> Actions<'a> {
+		pub fn find_unique(self, _where: UniqueWhereParam) -> FindUnique<'a> {
+			FindUnique::new(
+				self.client._new_query_context(),
+				QueryInfo::new("OwnedOperation", _outputs()),
+				_where.into(),
+			)
+		}
+		pub fn find_first(self, _where: Vec<WhereParam>) -> FindFirst<'a> {
+			FindFirst::new(
+				self.client._new_query_context(),
+				QueryInfo::new("OwnedOperation", _outputs()),
+				_where,
+			)
+		}
+		pub fn find_many(self, _where: Vec<WhereParam>) -> FindMany<'a> {
+			FindMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("OwnedOperation", _outputs()),
+				_where,
+			)
+		}
 		pub fn create(
 			self,
-			timestamp: timestamp::Set,
-			data: data::Set,
-			node: node::Link,
+			timestamp: Vec<u8>,
+			data: Vec<u8>,
+			node: super::node::UniqueWhereParam,
 			mut _params: Vec<SetParam>,
 		) -> Create<'a> {
-			_params.push(timestamp.into());
-			_params.push(data.into());
-			_params.push(node.into());
+			_params.push(timestamp::set(timestamp));
+			_params.push(data::set(data));
+			_params.push(node::link(node));
 			Create::new(
 				self.client._new_query_context(),
 				QueryInfo::new("OwnedOperation", _outputs()),
 				_params,
 			)
 		}
-		pub fn find_unique(self, param: UniqueWhereParam) -> FindUnique<'a> {
-			FindUnique::new(
+		pub fn update(self, _where: UniqueWhereParam, _params: Vec<SetParam>) -> Update<'a> {
+			Update::new(
 				self.client._new_query_context(),
 				QueryInfo::new("OwnedOperation", _outputs()),
-				param.into(),
+				_where.into(),
+				_params,
+				vec![],
 			)
 		}
-		pub fn find_first(self, params: Vec<WhereParam>) -> FindFirst<'a> {
-			FindFirst::new(
+		pub fn update_many(
+			self,
+			_where: Vec<WhereParam>,
+			_params: Vec<SetParam>,
+		) -> UpdateMany<'a> {
+			UpdateMany::new(
 				self.client._new_query_context(),
 				QueryInfo::new("OwnedOperation", _outputs()),
-				params,
+				_where,
+				_params,
 			)
 		}
-		pub fn find_many(self, params: Vec<WhereParam>) -> FindMany<'a> {
-			FindMany::new(
+		pub fn delete(self, _where: UniqueWhereParam) -> Delete<'a> {
+			Delete::new(
 				self.client._new_query_context(),
 				QueryInfo::new("OwnedOperation", _outputs()),
-				params,
+				_where.into(),
+				vec![],
+			)
+		}
+		pub fn delete_many(self, _where: Vec<WhereParam>) -> DeleteMany<'a> {
+			DeleteMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("OwnedOperation", _outputs()),
+				_where.into(),
 			)
 		}
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			_create: (timestamp::Set, data::Set, node::Link, Vec<SetParam>),
+			(timestamp, data, node, mut _params): (
+				Vec<u8>,
+				Vec<u8>,
+				super::node::UniqueWhereParam,
+				Vec<SetParam>,
+			),
 			_update: Vec<SetParam>,
 		) -> Upsert<'a> {
-			let (timestamp, data, node, mut _params) = _create;
-			_params.push(timestamp.into());
-			_params.push(data.into());
-			_params.push(node.into());
+			_params.push(timestamp::set(timestamp));
+			_params.push(data::set(data));
+			_params.push(node::link(node));
 			Upsert::new(
 				self.client._new_query_context(),
 				QueryInfo::new("OwnedOperation", _outputs()),
 				_where.into(),
 				_params,
 				_update,
+			)
+		}
+		pub fn count(self, _where: Vec<WhereParam>) -> Count<'a> {
+			Count::new(
+				self.client._new_query_context(),
+				QueryInfo::new("OwnedOperation", _outputs()),
+				_where,
 			)
 		}
 	}
@@ -888,7 +932,7 @@ pub mod shared_operation {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetId(value.0)
@@ -917,7 +961,7 @@ pub mod shared_operation {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::TimestampNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetTimestamp(value.0)
@@ -946,7 +990,7 @@ pub mod shared_operation {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::RecordIdNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetRecordId(value.0)
@@ -996,7 +1040,7 @@ pub mod shared_operation {
 		pub fn not(value: String) -> WhereParam {
 			WhereParam::KindNot(value)
 		}
-		pub struct Set(String);
+		pub struct Set(pub String);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetKind(value.0)
@@ -1025,7 +1069,7 @@ pub mod shared_operation {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::DataNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetData(value.0)
@@ -1078,7 +1122,7 @@ pub mod shared_operation {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideNodeId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetNodeId(value.0)
@@ -1095,24 +1139,20 @@ pub mod shared_operation {
 		pub fn is_not(value: Vec<node::WhereParam>) -> WhereParam {
 			WhereParam::NodeIsNot(value)
 		}
-		pub struct Fetch {
-			args: node::UniqueArgs,
-		}
+		pub struct Fetch(pub node::UniqueArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<node::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::Node(fetch.args)
+				WithParam::Node(fetch.0)
 			}
 		}
 		pub fn fetch() -> Fetch {
-			Fetch {
-				args: node::UniqueArgs::new(),
-			}
+			Fetch(node::UniqueArgs::new())
 		}
 		pub fn link<T: From<Link>>(value: node::UniqueWhereParam) -> T {
 			Link(value).into()
@@ -1754,6 +1794,7 @@ pub mod shared_operation {
 	}
 	pub type UniqueArgs = prisma_client_rust::UniqueArgs<WithParam>;
 	pub type ManyArgs = prisma_client_rust::ManyArgs<WhereParam, WithParam, OrderByParam, Cursor>;
+	pub type Count<'a> = prisma_client_rust::Count<'a, WhereParam, OrderByParam, Cursor>;
 	pub type Create<'a> = prisma_client_rust::Create<'a, SetParam, WithParam, Data>;
 	pub type FindUnique<'a> =
 		prisma_client_rust::FindUnique<'a, WhereParam, WithParam, SetParam, Data>;
@@ -1777,72 +1818,114 @@ pub mod shared_operation {
 		pub client: &'a PrismaClient,
 	}
 	impl<'a> Actions<'a> {
+		pub fn find_unique(self, _where: UniqueWhereParam) -> FindUnique<'a> {
+			FindUnique::new(
+				self.client._new_query_context(),
+				QueryInfo::new("SharedOperation", _outputs()),
+				_where.into(),
+			)
+		}
+		pub fn find_first(self, _where: Vec<WhereParam>) -> FindFirst<'a> {
+			FindFirst::new(
+				self.client._new_query_context(),
+				QueryInfo::new("SharedOperation", _outputs()),
+				_where,
+			)
+		}
+		pub fn find_many(self, _where: Vec<WhereParam>) -> FindMany<'a> {
+			FindMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("SharedOperation", _outputs()),
+				_where,
+			)
+		}
 		pub fn create(
 			self,
-			timestamp: timestamp::Set,
-			record_id: record_id::Set,
-			kind: kind::Set,
-			data: data::Set,
-			node: node::Link,
+			timestamp: Vec<u8>,
+			record_id: Vec<u8>,
+			kind: String,
+			data: Vec<u8>,
+			node: super::node::UniqueWhereParam,
 			mut _params: Vec<SetParam>,
 		) -> Create<'a> {
-			_params.push(timestamp.into());
-			_params.push(record_id.into());
-			_params.push(kind.into());
-			_params.push(data.into());
-			_params.push(node.into());
+			_params.push(timestamp::set(timestamp));
+			_params.push(record_id::set(record_id));
+			_params.push(kind::set(kind));
+			_params.push(data::set(data));
+			_params.push(node::link(node));
 			Create::new(
 				self.client._new_query_context(),
 				QueryInfo::new("SharedOperation", _outputs()),
 				_params,
 			)
 		}
-		pub fn find_unique(self, param: UniqueWhereParam) -> FindUnique<'a> {
-			FindUnique::new(
+		pub fn update(self, _where: UniqueWhereParam, _params: Vec<SetParam>) -> Update<'a> {
+			Update::new(
 				self.client._new_query_context(),
 				QueryInfo::new("SharedOperation", _outputs()),
-				param.into(),
+				_where.into(),
+				_params,
+				vec![],
 			)
 		}
-		pub fn find_first(self, params: Vec<WhereParam>) -> FindFirst<'a> {
-			FindFirst::new(
+		pub fn update_many(
+			self,
+			_where: Vec<WhereParam>,
+			_params: Vec<SetParam>,
+		) -> UpdateMany<'a> {
+			UpdateMany::new(
 				self.client._new_query_context(),
 				QueryInfo::new("SharedOperation", _outputs()),
-				params,
+				_where,
+				_params,
 			)
 		}
-		pub fn find_many(self, params: Vec<WhereParam>) -> FindMany<'a> {
-			FindMany::new(
+		pub fn delete(self, _where: UniqueWhereParam) -> Delete<'a> {
+			Delete::new(
 				self.client._new_query_context(),
 				QueryInfo::new("SharedOperation", _outputs()),
-				params,
+				_where.into(),
+				vec![],
+			)
+		}
+		pub fn delete_many(self, _where: Vec<WhereParam>) -> DeleteMany<'a> {
+			DeleteMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("SharedOperation", _outputs()),
+				_where.into(),
 			)
 		}
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			_create: (
-				timestamp::Set,
-				record_id::Set,
-				kind::Set,
-				data::Set,
-				node::Link,
+			(timestamp, record_id, kind, data, node, mut _params): (
+				Vec<u8>,
+				Vec<u8>,
+				String,
+				Vec<u8>,
+				super::node::UniqueWhereParam,
 				Vec<SetParam>,
 			),
 			_update: Vec<SetParam>,
 		) -> Upsert<'a> {
-			let (timestamp, record_id, kind, data, node, mut _params) = _create;
-			_params.push(timestamp.into());
-			_params.push(record_id.into());
-			_params.push(kind.into());
-			_params.push(data.into());
-			_params.push(node.into());
+			_params.push(timestamp::set(timestamp));
+			_params.push(record_id::set(record_id));
+			_params.push(kind::set(kind));
+			_params.push(data::set(data));
+			_params.push(node::link(node));
 			Upsert::new(
 				self.client._new_query_context(),
 				QueryInfo::new("SharedOperation", _outputs()),
 				_where.into(),
 				_params,
 				_update,
+			)
+		}
+		pub fn count(self, _where: Vec<WhereParam>) -> Count<'a> {
+			Count::new(
+				self.client._new_query_context(),
+				QueryInfo::new("SharedOperation", _outputs()),
+				_where,
 			)
 		}
 	}
@@ -1899,7 +1982,7 @@ pub mod relation_operation {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetId(value.0)
@@ -1928,7 +2011,7 @@ pub mod relation_operation {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::TimestampNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetTimestamp(value.0)
@@ -1978,7 +2061,7 @@ pub mod relation_operation {
 		pub fn not(value: String) -> WhereParam {
 			WhereParam::RelationNot(value)
 		}
-		pub struct Set(String);
+		pub struct Set(pub String);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetRelation(value.0)
@@ -2007,7 +2090,7 @@ pub mod relation_operation {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::RelationItemNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetRelationItem(value.0)
@@ -2036,7 +2119,7 @@ pub mod relation_operation {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::RelationGroupNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetRelationGroup(value.0)
@@ -2086,7 +2169,7 @@ pub mod relation_operation {
 		pub fn not(value: String) -> WhereParam {
 			WhereParam::KindNot(value)
 		}
-		pub struct Set(String);
+		pub struct Set(pub String);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetKind(value.0)
@@ -2115,7 +2198,7 @@ pub mod relation_operation {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::DataNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetData(value.0)
@@ -2168,7 +2251,7 @@ pub mod relation_operation {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideNodeId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetNodeId(value.0)
@@ -2185,24 +2268,20 @@ pub mod relation_operation {
 		pub fn is_not(value: Vec<node::WhereParam>) -> WhereParam {
 			WhereParam::NodeIsNot(value)
 		}
-		pub struct Fetch {
-			args: node::UniqueArgs,
-		}
+		pub struct Fetch(pub node::UniqueArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<node::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::Node(fetch.args)
+				WithParam::Node(fetch.0)
 			}
 		}
 		pub fn fetch() -> Fetch {
-			Fetch {
-				args: node::UniqueArgs::new(),
-			}
+			Fetch(node::UniqueArgs::new())
 		}
 		pub fn link<T: From<Link>>(value: node::UniqueWhereParam) -> T {
 			Link(value).into()
@@ -3003,6 +3082,7 @@ pub mod relation_operation {
 	}
 	pub type UniqueArgs = prisma_client_rust::UniqueArgs<WithParam>;
 	pub type ManyArgs = prisma_client_rust::ManyArgs<WhereParam, WithParam, OrderByParam, Cursor>;
+	pub type Count<'a> = prisma_client_rust::Count<'a, WhereParam, OrderByParam, Cursor>;
 	pub type Create<'a> = prisma_client_rust::Create<'a, SetParam, WithParam, Data>;
 	pub type FindUnique<'a> =
 		prisma_client_rust::FindUnique<'a, WhereParam, WithParam, SetParam, Data>;
@@ -3026,81 +3106,122 @@ pub mod relation_operation {
 		pub client: &'a PrismaClient,
 	}
 	impl<'a> Actions<'a> {
+		pub fn find_unique(self, _where: UniqueWhereParam) -> FindUnique<'a> {
+			FindUnique::new(
+				self.client._new_query_context(),
+				QueryInfo::new("RelationOperation", _outputs()),
+				_where.into(),
+			)
+		}
+		pub fn find_first(self, _where: Vec<WhereParam>) -> FindFirst<'a> {
+			FindFirst::new(
+				self.client._new_query_context(),
+				QueryInfo::new("RelationOperation", _outputs()),
+				_where,
+			)
+		}
+		pub fn find_many(self, _where: Vec<WhereParam>) -> FindMany<'a> {
+			FindMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("RelationOperation", _outputs()),
+				_where,
+			)
+		}
 		pub fn create(
 			self,
-			timestamp: timestamp::Set,
-			relation: relation::Set,
-			relation_item: relation_item::Set,
-			relation_group: relation_group::Set,
-			kind: kind::Set,
-			data: data::Set,
-			node: node::Link,
+			timestamp: Vec<u8>,
+			relation: String,
+			relation_item: Vec<u8>,
+			relation_group: Vec<u8>,
+			kind: String,
+			data: Vec<u8>,
+			node: super::node::UniqueWhereParam,
 			mut _params: Vec<SetParam>,
 		) -> Create<'a> {
-			_params.push(timestamp.into());
-			_params.push(relation.into());
-			_params.push(relation_item.into());
-			_params.push(relation_group.into());
-			_params.push(kind.into());
-			_params.push(data.into());
-			_params.push(node.into());
+			_params.push(timestamp::set(timestamp));
+			_params.push(relation::set(relation));
+			_params.push(relation_item::set(relation_item));
+			_params.push(relation_group::set(relation_group));
+			_params.push(kind::set(kind));
+			_params.push(data::set(data));
+			_params.push(node::link(node));
 			Create::new(
 				self.client._new_query_context(),
 				QueryInfo::new("RelationOperation", _outputs()),
 				_params,
 			)
 		}
-		pub fn find_unique(self, param: UniqueWhereParam) -> FindUnique<'a> {
-			FindUnique::new(
+		pub fn update(self, _where: UniqueWhereParam, _params: Vec<SetParam>) -> Update<'a> {
+			Update::new(
 				self.client._new_query_context(),
 				QueryInfo::new("RelationOperation", _outputs()),
-				param.into(),
+				_where.into(),
+				_params,
+				vec![],
 			)
 		}
-		pub fn find_first(self, params: Vec<WhereParam>) -> FindFirst<'a> {
-			FindFirst::new(
+		pub fn update_many(
+			self,
+			_where: Vec<WhereParam>,
+			_params: Vec<SetParam>,
+		) -> UpdateMany<'a> {
+			UpdateMany::new(
 				self.client._new_query_context(),
 				QueryInfo::new("RelationOperation", _outputs()),
-				params,
+				_where,
+				_params,
 			)
 		}
-		pub fn find_many(self, params: Vec<WhereParam>) -> FindMany<'a> {
-			FindMany::new(
+		pub fn delete(self, _where: UniqueWhereParam) -> Delete<'a> {
+			Delete::new(
 				self.client._new_query_context(),
 				QueryInfo::new("RelationOperation", _outputs()),
-				params,
+				_where.into(),
+				vec![],
+			)
+		}
+		pub fn delete_many(self, _where: Vec<WhereParam>) -> DeleteMany<'a> {
+			DeleteMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("RelationOperation", _outputs()),
+				_where.into(),
 			)
 		}
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			_create: (
-				timestamp::Set,
-				relation::Set,
-				relation_item::Set,
-				relation_group::Set,
-				kind::Set,
-				data::Set,
-				node::Link,
+			(timestamp, relation, relation_item, relation_group, kind, data, node, mut _params): (
+				Vec<u8>,
+				String,
+				Vec<u8>,
+				Vec<u8>,
+				String,
+				Vec<u8>,
+				super::node::UniqueWhereParam,
 				Vec<SetParam>,
 			),
 			_update: Vec<SetParam>,
 		) -> Upsert<'a> {
-			let (timestamp, relation, relation_item, relation_group, kind, data, node, mut _params) =
-				_create;
-			_params.push(timestamp.into());
-			_params.push(relation.into());
-			_params.push(relation_item.into());
-			_params.push(relation_group.into());
-			_params.push(kind.into());
-			_params.push(data.into());
-			_params.push(node.into());
+			_params.push(timestamp::set(timestamp));
+			_params.push(relation::set(relation));
+			_params.push(relation_item::set(relation_item));
+			_params.push(relation_group::set(relation_group));
+			_params.push(kind::set(kind));
+			_params.push(data::set(data));
+			_params.push(node::link(node));
 			Upsert::new(
 				self.client._new_query_context(),
 				QueryInfo::new("RelationOperation", _outputs()),
 				_where.into(),
 				_params,
 				_update,
+			)
+		}
+		pub fn count(self, _where: Vec<WhereParam>) -> Count<'a> {
+			Count::new(
+				self.client._new_query_context(),
+				QueryInfo::new("RelationOperation", _outputs()),
+				_where,
 			)
 		}
 	}
@@ -3157,7 +3278,7 @@ pub mod node {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideLocalId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetLocalId(value.0)
@@ -3189,7 +3310,7 @@ pub mod node {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::IdNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetId(value.0)
@@ -3239,7 +3360,7 @@ pub mod node {
 		pub fn not(value: String) -> WhereParam {
 			WhereParam::NameNot(value)
 		}
-		pub struct Set(String);
+		pub struct Set(pub String);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetName(value.0)
@@ -3259,40 +3380,36 @@ pub mod node {
 		pub fn none(value: Vec<location::WhereParam>) -> WhereParam {
 			WhereParam::LocationsNone(value)
 		}
-		pub struct Fetch {
-			args: location::ManyArgs,
-		}
+		pub struct Fetch(pub location::ManyArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<location::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 			pub fn order_by(mut self, param: location::OrderByParam) -> Self {
-				self.args = self.args.order_by(param);
+				self.0 = self.0.order_by(param);
 				self
 			}
 			pub fn skip(mut self, value: i64) -> Self {
-				self.args = self.args.skip(value);
+				self.0 = self.0.skip(value);
 				self
 			}
 			pub fn take(mut self, value: i64) -> Self {
-				self.args = self.args.take(value);
+				self.0 = self.0.take(value);
 				self
 			}
 			pub fn cursor(mut self, value: impl Into<location::Cursor>) -> Self {
-				self.args = self.args.cursor(value.into());
+				self.0 = self.0.cursor(value.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::Locations(fetch.args)
+				WithParam::Locations(fetch.0)
 			}
 		}
 		pub fn fetch(params: Vec<location::WhereParam>) -> Fetch {
-			Fetch {
-				args: location::ManyArgs::new(params),
-			}
+			Fetch(location::ManyArgs::new(params))
 		}
 		pub fn link<T: From<Link>>(params: Vec<location::UniqueWhereParam>) -> T {
 			Link(params).into()
@@ -3300,7 +3417,7 @@ pub mod node {
 		pub fn unlink(params: Vec<location::UniqueWhereParam>) -> SetParam {
 			SetParam::UnlinkLocations(params)
 		}
-		pub struct Link(Vec<location::UniqueWhereParam>);
+		pub struct Link(pub Vec<location::UniqueWhereParam>);
 		impl From<Link> for SetParam {
 			fn from(value: Link) -> Self {
 				Self::LinkLocations(value.0)
@@ -3320,40 +3437,36 @@ pub mod node {
 		pub fn none(value: Vec<owned_operation::WhereParam>) -> WhereParam {
 			WhereParam::OwnedOperationsNone(value)
 		}
-		pub struct Fetch {
-			args: owned_operation::ManyArgs,
-		}
+		pub struct Fetch(pub owned_operation::ManyArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<owned_operation::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 			pub fn order_by(mut self, param: owned_operation::OrderByParam) -> Self {
-				self.args = self.args.order_by(param);
+				self.0 = self.0.order_by(param);
 				self
 			}
 			pub fn skip(mut self, value: i64) -> Self {
-				self.args = self.args.skip(value);
+				self.0 = self.0.skip(value);
 				self
 			}
 			pub fn take(mut self, value: i64) -> Self {
-				self.args = self.args.take(value);
+				self.0 = self.0.take(value);
 				self
 			}
 			pub fn cursor(mut self, value: impl Into<owned_operation::Cursor>) -> Self {
-				self.args = self.args.cursor(value.into());
+				self.0 = self.0.cursor(value.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::OwnedOperations(fetch.args)
+				WithParam::OwnedOperations(fetch.0)
 			}
 		}
 		pub fn fetch(params: Vec<owned_operation::WhereParam>) -> Fetch {
-			Fetch {
-				args: owned_operation::ManyArgs::new(params),
-			}
+			Fetch(owned_operation::ManyArgs::new(params))
 		}
 		pub fn link<T: From<Link>>(params: Vec<owned_operation::UniqueWhereParam>) -> T {
 			Link(params).into()
@@ -3361,7 +3474,7 @@ pub mod node {
 		pub fn unlink(params: Vec<owned_operation::UniqueWhereParam>) -> SetParam {
 			SetParam::UnlinkOwnedOperations(params)
 		}
-		pub struct Link(Vec<owned_operation::UniqueWhereParam>);
+		pub struct Link(pub Vec<owned_operation::UniqueWhereParam>);
 		impl From<Link> for SetParam {
 			fn from(value: Link) -> Self {
 				Self::LinkOwnedOperations(value.0)
@@ -3381,40 +3494,36 @@ pub mod node {
 		pub fn none(value: Vec<shared_operation::WhereParam>) -> WhereParam {
 			WhereParam::SharedOperationsNone(value)
 		}
-		pub struct Fetch {
-			args: shared_operation::ManyArgs,
-		}
+		pub struct Fetch(pub shared_operation::ManyArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<shared_operation::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 			pub fn order_by(mut self, param: shared_operation::OrderByParam) -> Self {
-				self.args = self.args.order_by(param);
+				self.0 = self.0.order_by(param);
 				self
 			}
 			pub fn skip(mut self, value: i64) -> Self {
-				self.args = self.args.skip(value);
+				self.0 = self.0.skip(value);
 				self
 			}
 			pub fn take(mut self, value: i64) -> Self {
-				self.args = self.args.take(value);
+				self.0 = self.0.take(value);
 				self
 			}
 			pub fn cursor(mut self, value: impl Into<shared_operation::Cursor>) -> Self {
-				self.args = self.args.cursor(value.into());
+				self.0 = self.0.cursor(value.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::SharedOperations(fetch.args)
+				WithParam::SharedOperations(fetch.0)
 			}
 		}
 		pub fn fetch(params: Vec<shared_operation::WhereParam>) -> Fetch {
-			Fetch {
-				args: shared_operation::ManyArgs::new(params),
-			}
+			Fetch(shared_operation::ManyArgs::new(params))
 		}
 		pub fn link<T: From<Link>>(params: Vec<shared_operation::UniqueWhereParam>) -> T {
 			Link(params).into()
@@ -3422,7 +3531,7 @@ pub mod node {
 		pub fn unlink(params: Vec<shared_operation::UniqueWhereParam>) -> SetParam {
 			SetParam::UnlinkSharedOperations(params)
 		}
-		pub struct Link(Vec<shared_operation::UniqueWhereParam>);
+		pub struct Link(pub Vec<shared_operation::UniqueWhereParam>);
 		impl From<Link> for SetParam {
 			fn from(value: Link) -> Self {
 				Self::LinkSharedOperations(value.0)
@@ -3442,40 +3551,36 @@ pub mod node {
 		pub fn none(value: Vec<relation_operation::WhereParam>) -> WhereParam {
 			WhereParam::RelationOperationsNone(value)
 		}
-		pub struct Fetch {
-			args: relation_operation::ManyArgs,
-		}
+		pub struct Fetch(pub relation_operation::ManyArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<relation_operation::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 			pub fn order_by(mut self, param: relation_operation::OrderByParam) -> Self {
-				self.args = self.args.order_by(param);
+				self.0 = self.0.order_by(param);
 				self
 			}
 			pub fn skip(mut self, value: i64) -> Self {
-				self.args = self.args.skip(value);
+				self.0 = self.0.skip(value);
 				self
 			}
 			pub fn take(mut self, value: i64) -> Self {
-				self.args = self.args.take(value);
+				self.0 = self.0.take(value);
 				self
 			}
 			pub fn cursor(mut self, value: impl Into<relation_operation::Cursor>) -> Self {
-				self.args = self.args.cursor(value.into());
+				self.0 = self.0.cursor(value.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::RelationOperations(fetch.args)
+				WithParam::RelationOperations(fetch.0)
 			}
 		}
 		pub fn fetch(params: Vec<relation_operation::WhereParam>) -> Fetch {
-			Fetch {
-				args: relation_operation::ManyArgs::new(params),
-			}
+			Fetch(relation_operation::ManyArgs::new(params))
 		}
 		pub fn link<T: From<Link>>(params: Vec<relation_operation::UniqueWhereParam>) -> T {
 			Link(params).into()
@@ -3483,7 +3588,7 @@ pub mod node {
 		pub fn unlink(params: Vec<relation_operation::UniqueWhereParam>) -> SetParam {
 			SetParam::UnlinkRelationOperations(params)
 		}
-		pub struct Link(Vec<relation_operation::UniqueWhereParam>);
+		pub struct Link(pub Vec<relation_operation::UniqueWhereParam>);
 		impl From<Link> for SetParam {
 			fn from(value: Link) -> Self {
 				Self::LinkRelationOperations(value.0)
@@ -4167,6 +4272,7 @@ pub mod node {
 	}
 	pub type UniqueArgs = prisma_client_rust::UniqueArgs<WithParam>;
 	pub type ManyArgs = prisma_client_rust::ManyArgs<WhereParam, WithParam, OrderByParam, Cursor>;
+	pub type Count<'a> = prisma_client_rust::Count<'a, WhereParam, OrderByParam, Cursor>;
 	pub type Create<'a> = prisma_client_rust::Create<'a, SetParam, WithParam, Data>;
 	pub type FindUnique<'a> =
 		prisma_client_rust::FindUnique<'a, WhereParam, WithParam, SetParam, Data>;
@@ -4190,56 +4296,93 @@ pub mod node {
 		pub client: &'a PrismaClient,
 	}
 	impl<'a> Actions<'a> {
-		pub fn create(
-			self,
-			id: id::Set,
-			name: name::Set,
-			mut _params: Vec<SetParam>,
-		) -> Create<'a> {
-			_params.push(id.into());
-			_params.push(name.into());
+		pub fn find_unique(self, _where: UniqueWhereParam) -> FindUnique<'a> {
+			FindUnique::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Node", _outputs()),
+				_where.into(),
+			)
+		}
+		pub fn find_first(self, _where: Vec<WhereParam>) -> FindFirst<'a> {
+			FindFirst::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Node", _outputs()),
+				_where,
+			)
+		}
+		pub fn find_many(self, _where: Vec<WhereParam>) -> FindMany<'a> {
+			FindMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Node", _outputs()),
+				_where,
+			)
+		}
+		pub fn create(self, id: Vec<u8>, name: String, mut _params: Vec<SetParam>) -> Create<'a> {
+			_params.push(id::set(id));
+			_params.push(name::set(name));
 			Create::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Node", _outputs()),
 				_params,
 			)
 		}
-		pub fn find_unique(self, param: UniqueWhereParam) -> FindUnique<'a> {
-			FindUnique::new(
+		pub fn update(self, _where: UniqueWhereParam, _params: Vec<SetParam>) -> Update<'a> {
+			Update::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Node", _outputs()),
-				param.into(),
+				_where.into(),
+				_params,
+				vec![],
 			)
 		}
-		pub fn find_first(self, params: Vec<WhereParam>) -> FindFirst<'a> {
-			FindFirst::new(
+		pub fn update_many(
+			self,
+			_where: Vec<WhereParam>,
+			_params: Vec<SetParam>,
+		) -> UpdateMany<'a> {
+			UpdateMany::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Node", _outputs()),
-				params,
+				_where,
+				_params,
 			)
 		}
-		pub fn find_many(self, params: Vec<WhereParam>) -> FindMany<'a> {
-			FindMany::new(
+		pub fn delete(self, _where: UniqueWhereParam) -> Delete<'a> {
+			Delete::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Node", _outputs()),
-				params,
+				_where.into(),
+				vec![],
+			)
+		}
+		pub fn delete_many(self, _where: Vec<WhereParam>) -> DeleteMany<'a> {
+			DeleteMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Node", _outputs()),
+				_where.into(),
 			)
 		}
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			_create: (id::Set, name::Set, Vec<SetParam>),
+			(id, name, mut _params): (Vec<u8>, String, Vec<SetParam>),
 			_update: Vec<SetParam>,
 		) -> Upsert<'a> {
-			let (id, name, mut _params) = _create;
-			_params.push(id.into());
-			_params.push(name.into());
+			_params.push(id::set(id));
+			_params.push(name::set(name));
 			Upsert::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Node", _outputs()),
 				_where.into(),
 				_params,
 				_update,
+			)
+		}
+		pub fn count(self, _where: Vec<WhereParam>) -> Count<'a> {
+			Count::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Node", _outputs()),
+				_where,
 			)
 		}
 	}
@@ -4296,7 +4439,7 @@ pub mod location {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideLocalId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetLocalId(value.0)
@@ -4328,7 +4471,7 @@ pub mod location {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::IdNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetId(value.0)
@@ -4381,7 +4524,7 @@ pub mod location {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideNodeId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetNodeId(value.0)
@@ -4398,24 +4541,20 @@ pub mod location {
 		pub fn is_not(value: Vec<node::WhereParam>) -> WhereParam {
 			WhereParam::NodeIsNot(value)
 		}
-		pub struct Fetch {
-			args: node::UniqueArgs,
-		}
+		pub struct Fetch(pub node::UniqueArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<node::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::Node(fetch.args)
+				WithParam::Node(fetch.0)
 			}
 		}
 		pub fn fetch() -> Fetch {
-			Fetch {
-				args: node::UniqueArgs::new(),
-			}
+			Fetch(node::UniqueArgs::new())
 		}
 		pub fn link<T: From<Link>>(value: node::UniqueWhereParam) -> T {
 			Link(value).into()
@@ -4470,7 +4609,7 @@ pub mod location {
 		pub fn not(value: String) -> WhereParam {
 			WhereParam::NameNot(value)
 		}
-		pub struct Set(String);
+		pub struct Set(pub String);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetName(value.0)
@@ -4490,40 +4629,36 @@ pub mod location {
 		pub fn none(value: Vec<file_path::WhereParam>) -> WhereParam {
 			WhereParam::FilePathsNone(value)
 		}
-		pub struct Fetch {
-			args: file_path::ManyArgs,
-		}
+		pub struct Fetch(pub file_path::ManyArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<file_path::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 			pub fn order_by(mut self, param: file_path::OrderByParam) -> Self {
-				self.args = self.args.order_by(param);
+				self.0 = self.0.order_by(param);
 				self
 			}
 			pub fn skip(mut self, value: i64) -> Self {
-				self.args = self.args.skip(value);
+				self.0 = self.0.skip(value);
 				self
 			}
 			pub fn take(mut self, value: i64) -> Self {
-				self.args = self.args.take(value);
+				self.0 = self.0.take(value);
 				self
 			}
 			pub fn cursor(mut self, value: impl Into<file_path::Cursor>) -> Self {
-				self.args = self.args.cursor(value.into());
+				self.0 = self.0.cursor(value.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::FilePaths(fetch.args)
+				WithParam::FilePaths(fetch.0)
 			}
 		}
 		pub fn fetch(params: Vec<file_path::WhereParam>) -> Fetch {
-			Fetch {
-				args: file_path::ManyArgs::new(params),
-			}
+			Fetch(file_path::ManyArgs::new(params))
 		}
 		pub fn link<T: From<Link>>(params: Vec<file_path::UniqueWhereParam>) -> T {
 			Link(params).into()
@@ -4531,7 +4666,7 @@ pub mod location {
 		pub fn unlink(params: Vec<file_path::UniqueWhereParam>) -> SetParam {
 			SetParam::UnlinkFilePaths(params)
 		}
-		pub struct Link(Vec<file_path::UniqueWhereParam>);
+		pub struct Link(pub Vec<file_path::UniqueWhereParam>);
 		impl From<Link> for SetParam {
 			fn from(value: Link) -> Self {
 				Self::LinkFilePaths(value.0)
@@ -5155,6 +5290,7 @@ pub mod location {
 	}
 	pub type UniqueArgs = prisma_client_rust::UniqueArgs<WithParam>;
 	pub type ManyArgs = prisma_client_rust::ManyArgs<WhereParam, WithParam, OrderByParam, Cursor>;
+	pub type Count<'a> = prisma_client_rust::Count<'a, WhereParam, OrderByParam, Cursor>;
 	pub type Create<'a> = prisma_client_rust::Create<'a, SetParam, WithParam, Data>;
 	pub type FindUnique<'a> =
 		prisma_client_rust::FindUnique<'a, WhereParam, WithParam, SetParam, Data>;
@@ -5178,59 +5314,106 @@ pub mod location {
 		pub client: &'a PrismaClient,
 	}
 	impl<'a> Actions<'a> {
+		pub fn find_unique(self, _where: UniqueWhereParam) -> FindUnique<'a> {
+			FindUnique::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Location", _outputs()),
+				_where.into(),
+			)
+		}
+		pub fn find_first(self, _where: Vec<WhereParam>) -> FindFirst<'a> {
+			FindFirst::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Location", _outputs()),
+				_where,
+			)
+		}
+		pub fn find_many(self, _where: Vec<WhereParam>) -> FindMany<'a> {
+			FindMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Location", _outputs()),
+				_where,
+			)
+		}
 		pub fn create(
 			self,
-			id: id::Set,
-			node: node::Link,
-			name: name::Set,
+			id: Vec<u8>,
+			node: super::node::UniqueWhereParam,
+			name: String,
 			mut _params: Vec<SetParam>,
 		) -> Create<'a> {
-			_params.push(id.into());
-			_params.push(node.into());
-			_params.push(name.into());
+			_params.push(id::set(id));
+			_params.push(node::link(node));
+			_params.push(name::set(name));
 			Create::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Location", _outputs()),
 				_params,
 			)
 		}
-		pub fn find_unique(self, param: UniqueWhereParam) -> FindUnique<'a> {
-			FindUnique::new(
+		pub fn update(self, _where: UniqueWhereParam, _params: Vec<SetParam>) -> Update<'a> {
+			Update::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Location", _outputs()),
-				param.into(),
+				_where.into(),
+				_params,
+				vec![],
 			)
 		}
-		pub fn find_first(self, params: Vec<WhereParam>) -> FindFirst<'a> {
-			FindFirst::new(
+		pub fn update_many(
+			self,
+			_where: Vec<WhereParam>,
+			_params: Vec<SetParam>,
+		) -> UpdateMany<'a> {
+			UpdateMany::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Location", _outputs()),
-				params,
+				_where,
+				_params,
 			)
 		}
-		pub fn find_many(self, params: Vec<WhereParam>) -> FindMany<'a> {
-			FindMany::new(
+		pub fn delete(self, _where: UniqueWhereParam) -> Delete<'a> {
+			Delete::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Location", _outputs()),
-				params,
+				_where.into(),
+				vec![],
+			)
+		}
+		pub fn delete_many(self, _where: Vec<WhereParam>) -> DeleteMany<'a> {
+			DeleteMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Location", _outputs()),
+				_where.into(),
 			)
 		}
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			_create: (id::Set, node::Link, name::Set, Vec<SetParam>),
+			(id, node, name, mut _params): (
+				Vec<u8>,
+				super::node::UniqueWhereParam,
+				String,
+				Vec<SetParam>,
+			),
 			_update: Vec<SetParam>,
 		) -> Upsert<'a> {
-			let (id, node, name, mut _params) = _create;
-			_params.push(id.into());
-			_params.push(node.into());
-			_params.push(name.into());
+			_params.push(id::set(id));
+			_params.push(node::link(node));
+			_params.push(name::set(name));
 			Upsert::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Location", _outputs()),
 				_where.into(),
 				_params,
 				_update,
+			)
+		}
+		pub fn count(self, _where: Vec<WhereParam>) -> Count<'a> {
+			Count::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Location", _outputs()),
+				_where,
 			)
 		}
 	}
@@ -5284,7 +5467,7 @@ pub mod file_path {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetId(value.0)
@@ -5337,7 +5520,7 @@ pub mod file_path {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideLocationId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetLocationId(value.0)
@@ -5354,24 +5537,20 @@ pub mod file_path {
 		pub fn is_not(value: Vec<location::WhereParam>) -> WhereParam {
 			WhereParam::LocationIsNot(value)
 		}
-		pub struct Fetch {
-			args: location::UniqueArgs,
-		}
+		pub struct Fetch(pub location::UniqueArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<location::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::Location(fetch.args)
+				WithParam::Location(fetch.0)
 			}
 		}
 		pub fn fetch() -> Fetch {
-			Fetch {
-				args: location::UniqueArgs::new(),
-			}
+			Fetch(location::UniqueArgs::new())
 		}
 		pub fn link<T: From<Link>>(value: location::UniqueWhereParam) -> T {
 			Link(value).into()
@@ -5429,7 +5608,7 @@ pub mod file_path {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideParentId(value)
 		}
-		pub struct Set(Option<i32>);
+		pub struct Set(pub Option<i32>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetParentId(value.0)
@@ -5446,24 +5625,20 @@ pub mod file_path {
 		pub fn is_not(value: Vec<file_path::WhereParam>) -> WhereParam {
 			WhereParam::ParentIsNot(value)
 		}
-		pub struct Fetch {
-			args: file_path::UniqueArgs,
-		}
+		pub struct Fetch(pub file_path::UniqueArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<file_path::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::Parent(fetch.args)
+				WithParam::Parent(fetch.0)
 			}
 		}
 		pub fn fetch() -> Fetch {
-			Fetch {
-				args: file_path::UniqueArgs::new(),
-			}
+			Fetch(file_path::UniqueArgs::new())
 		}
 		pub fn link<T: From<Link>>(value: file_path::UniqueWhereParam) -> T {
 			Link(value).into()
@@ -5524,7 +5699,7 @@ pub mod file_path {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideFileId(value)
 		}
-		pub struct Set(Option<i32>);
+		pub struct Set(pub Option<i32>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetFileId(value.0)
@@ -5541,24 +5716,20 @@ pub mod file_path {
 		pub fn is_not(value: Vec<file::WhereParam>) -> WhereParam {
 			WhereParam::FileIsNot(value)
 		}
-		pub struct Fetch {
-			args: file::UniqueArgs,
-		}
+		pub struct Fetch(pub file::UniqueArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<file::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::File(fetch.args)
+				WithParam::File(fetch.0)
 			}
 		}
 		pub fn fetch() -> Fetch {
-			Fetch {
-				args: file::UniqueArgs::new(),
-			}
+			Fetch(file::UniqueArgs::new())
 		}
 		pub fn link<T: From<Link>>(value: file::UniqueWhereParam) -> T {
 			Link(value).into()
@@ -5616,7 +5787,7 @@ pub mod file_path {
 		pub fn not(value: String) -> WhereParam {
 			WhereParam::NameNot(value)
 		}
-		pub struct Set(String);
+		pub struct Set(pub String);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetName(value.0)
@@ -5636,40 +5807,36 @@ pub mod file_path {
 		pub fn none(value: Vec<file_path::WhereParam>) -> WhereParam {
 			WhereParam::ChildrenNone(value)
 		}
-		pub struct Fetch {
-			args: file_path::ManyArgs,
-		}
+		pub struct Fetch(pub file_path::ManyArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<file_path::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 			pub fn order_by(mut self, param: file_path::OrderByParam) -> Self {
-				self.args = self.args.order_by(param);
+				self.0 = self.0.order_by(param);
 				self
 			}
 			pub fn skip(mut self, value: i64) -> Self {
-				self.args = self.args.skip(value);
+				self.0 = self.0.skip(value);
 				self
 			}
 			pub fn take(mut self, value: i64) -> Self {
-				self.args = self.args.take(value);
+				self.0 = self.0.take(value);
 				self
 			}
 			pub fn cursor(mut self, value: impl Into<file_path::Cursor>) -> Self {
-				self.args = self.args.cursor(value.into());
+				self.0 = self.0.cursor(value.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::Children(fetch.args)
+				WithParam::Children(fetch.0)
 			}
 		}
 		pub fn fetch(params: Vec<file_path::WhereParam>) -> Fetch {
-			Fetch {
-				args: file_path::ManyArgs::new(params),
-			}
+			Fetch(file_path::ManyArgs::new(params))
 		}
 		pub fn link<T: From<Link>>(params: Vec<file_path::UniqueWhereParam>) -> T {
 			Link(params).into()
@@ -5677,7 +5844,7 @@ pub mod file_path {
 		pub fn unlink(params: Vec<file_path::UniqueWhereParam>) -> SetParam {
 			SetParam::UnlinkChildren(params)
 		}
-		pub struct Link(Vec<file_path::UniqueWhereParam>);
+		pub struct Link(pub Vec<file_path::UniqueWhereParam>);
 		impl From<Link> for SetParam {
 			fn from(value: Link) -> Self {
 				Self::LinkChildren(value.0)
@@ -6628,6 +6795,7 @@ pub mod file_path {
 	}
 	pub type UniqueArgs = prisma_client_rust::UniqueArgs<WithParam>;
 	pub type ManyArgs = prisma_client_rust::ManyArgs<WhereParam, WithParam, OrderByParam, Cursor>;
+	pub type Count<'a> = prisma_client_rust::Count<'a, WhereParam, OrderByParam, Cursor>;
 	pub type Create<'a> = prisma_client_rust::Create<'a, SetParam, WithParam, Data>;
 	pub type FindUnique<'a> =
 		prisma_client_rust::FindUnique<'a, WhereParam, WithParam, SetParam, Data>;
@@ -6651,59 +6819,106 @@ pub mod file_path {
 		pub client: &'a PrismaClient,
 	}
 	impl<'a> Actions<'a> {
+		pub fn find_unique(self, _where: UniqueWhereParam) -> FindUnique<'a> {
+			FindUnique::new(
+				self.client._new_query_context(),
+				QueryInfo::new("FilePath", _outputs()),
+				_where.into(),
+			)
+		}
+		pub fn find_first(self, _where: Vec<WhereParam>) -> FindFirst<'a> {
+			FindFirst::new(
+				self.client._new_query_context(),
+				QueryInfo::new("FilePath", _outputs()),
+				_where,
+			)
+		}
+		pub fn find_many(self, _where: Vec<WhereParam>) -> FindMany<'a> {
+			FindMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("FilePath", _outputs()),
+				_where,
+			)
+		}
 		pub fn create(
 			self,
-			id: id::Set,
-			location: location::Link,
-			name: name::Set,
+			id: i32,
+			location: super::location::UniqueWhereParam,
+			name: String,
 			mut _params: Vec<SetParam>,
 		) -> Create<'a> {
-			_params.push(id.into());
-			_params.push(location.into());
-			_params.push(name.into());
+			_params.push(id::set(id));
+			_params.push(location::link(location));
+			_params.push(name::set(name));
 			Create::new(
 				self.client._new_query_context(),
 				QueryInfo::new("FilePath", _outputs()),
 				_params,
 			)
 		}
-		pub fn find_unique(self, param: UniqueWhereParam) -> FindUnique<'a> {
-			FindUnique::new(
+		pub fn update(self, _where: UniqueWhereParam, _params: Vec<SetParam>) -> Update<'a> {
+			Update::new(
 				self.client._new_query_context(),
 				QueryInfo::new("FilePath", _outputs()),
-				param.into(),
+				_where.into(),
+				_params,
+				vec![],
 			)
 		}
-		pub fn find_first(self, params: Vec<WhereParam>) -> FindFirst<'a> {
-			FindFirst::new(
+		pub fn update_many(
+			self,
+			_where: Vec<WhereParam>,
+			_params: Vec<SetParam>,
+		) -> UpdateMany<'a> {
+			UpdateMany::new(
 				self.client._new_query_context(),
 				QueryInfo::new("FilePath", _outputs()),
-				params,
+				_where,
+				_params,
 			)
 		}
-		pub fn find_many(self, params: Vec<WhereParam>) -> FindMany<'a> {
-			FindMany::new(
+		pub fn delete(self, _where: UniqueWhereParam) -> Delete<'a> {
+			Delete::new(
 				self.client._new_query_context(),
 				QueryInfo::new("FilePath", _outputs()),
-				params,
+				_where.into(),
+				vec![],
+			)
+		}
+		pub fn delete_many(self, _where: Vec<WhereParam>) -> DeleteMany<'a> {
+			DeleteMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("FilePath", _outputs()),
+				_where.into(),
 			)
 		}
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			_create: (id::Set, location::Link, name::Set, Vec<SetParam>),
+			(id, location, name, mut _params): (
+				i32,
+				super::location::UniqueWhereParam,
+				String,
+				Vec<SetParam>,
+			),
 			_update: Vec<SetParam>,
 		) -> Upsert<'a> {
-			let (id, location, name, mut _params) = _create;
-			_params.push(id.into());
-			_params.push(location.into());
-			_params.push(name.into());
+			_params.push(id::set(id));
+			_params.push(location::link(location));
+			_params.push(name::set(name));
 			Upsert::new(
 				self.client._new_query_context(),
 				QueryInfo::new("FilePath", _outputs()),
 				_where.into(),
 				_params,
 				_update,
+			)
+		}
+		pub fn count(self, _where: Vec<WhereParam>) -> Count<'a> {
+			Count::new(
+				self.client._new_query_context(),
+				QueryInfo::new("FilePath", _outputs()),
+				_where,
 			)
 		}
 	}
@@ -6760,7 +6975,7 @@ pub mod file {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideLocalId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetLocalId(value.0)
@@ -6792,10 +7007,63 @@ pub mod file {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::CasIdNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetCasId(value.0)
+			}
+		}
+	}
+	pub mod size_in_bytes {
+		use super::super::*;
+		use super::_prisma::*;
+		use super::{Cursor, OrderByParam, SetParam, UniqueWhereParam, WhereParam, WithParam};
+		pub fn set<T: From<Set>>(value: i32) -> T {
+			Set(value).into()
+		}
+		pub fn equals(value: i32) -> WhereParam {
+			WhereParam::SizeInBytesEquals(value).into()
+		}
+		pub fn order(direction: Direction) -> OrderByParam {
+			OrderByParam::SizeInBytes(direction)
+		}
+		pub fn in_vec(value: Vec<i32>) -> WhereParam {
+			WhereParam::SizeInBytesInVec(value)
+		}
+		pub fn not_in_vec(value: Vec<i32>) -> WhereParam {
+			WhereParam::SizeInBytesNotInVec(value)
+		}
+		pub fn lt(value: i32) -> WhereParam {
+			WhereParam::SizeInBytesLt(value)
+		}
+		pub fn lte(value: i32) -> WhereParam {
+			WhereParam::SizeInBytesLte(value)
+		}
+		pub fn gt(value: i32) -> WhereParam {
+			WhereParam::SizeInBytesGt(value)
+		}
+		pub fn gte(value: i32) -> WhereParam {
+			WhereParam::SizeInBytesGte(value)
+		}
+		pub fn not(value: i32) -> WhereParam {
+			WhereParam::SizeInBytesNot(value)
+		}
+		pub fn increment(value: i32) -> SetParam {
+			SetParam::IncrementSizeInBytes(value)
+		}
+		pub fn decrement(value: i32) -> SetParam {
+			SetParam::DecrementSizeInBytes(value)
+		}
+		pub fn multiply(value: i32) -> SetParam {
+			SetParam::MultiplySizeInBytes(value)
+		}
+		pub fn divide(value: i32) -> SetParam {
+			SetParam::DivideSizeInBytes(value)
+		}
+		pub struct Set(pub i32);
+		impl From<Set> for SetParam {
+			fn from(value: Set) -> Self {
+				Self::SetSizeInBytes(value.0)
 			}
 		}
 	}
@@ -6812,40 +7080,36 @@ pub mod file {
 		pub fn none(value: Vec<file_path::WhereParam>) -> WhereParam {
 			WhereParam::FilePathsNone(value)
 		}
-		pub struct Fetch {
-			args: file_path::ManyArgs,
-		}
+		pub struct Fetch(pub file_path::ManyArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<file_path::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 			pub fn order_by(mut self, param: file_path::OrderByParam) -> Self {
-				self.args = self.args.order_by(param);
+				self.0 = self.0.order_by(param);
 				self
 			}
 			pub fn skip(mut self, value: i64) -> Self {
-				self.args = self.args.skip(value);
+				self.0 = self.0.skip(value);
 				self
 			}
 			pub fn take(mut self, value: i64) -> Self {
-				self.args = self.args.take(value);
+				self.0 = self.0.take(value);
 				self
 			}
 			pub fn cursor(mut self, value: impl Into<file_path::Cursor>) -> Self {
-				self.args = self.args.cursor(value.into());
+				self.0 = self.0.cursor(value.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::FilePaths(fetch.args)
+				WithParam::FilePaths(fetch.0)
 			}
 		}
 		pub fn fetch(params: Vec<file_path::WhereParam>) -> Fetch {
-			Fetch {
-				args: file_path::ManyArgs::new(params),
-			}
+			Fetch(file_path::ManyArgs::new(params))
 		}
 		pub fn link<T: From<Link>>(params: Vec<file_path::UniqueWhereParam>) -> T {
 			Link(params).into()
@@ -6853,7 +7117,7 @@ pub mod file {
 		pub fn unlink(params: Vec<file_path::UniqueWhereParam>) -> SetParam {
 			SetParam::UnlinkFilePaths(params)
 		}
-		pub struct Link(Vec<file_path::UniqueWhereParam>);
+		pub struct Link(pub Vec<file_path::UniqueWhereParam>);
 		impl From<Link> for SetParam {
 			fn from(value: Link) -> Self {
 				Self::LinkFilePaths(value.0)
@@ -6873,40 +7137,36 @@ pub mod file {
 		pub fn none(value: Vec<tag_on_file::WhereParam>) -> WhereParam {
 			WhereParam::TagOnFileNone(value)
 		}
-		pub struct Fetch {
-			args: tag_on_file::ManyArgs,
-		}
+		pub struct Fetch(pub tag_on_file::ManyArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<tag_on_file::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 			pub fn order_by(mut self, param: tag_on_file::OrderByParam) -> Self {
-				self.args = self.args.order_by(param);
+				self.0 = self.0.order_by(param);
 				self
 			}
 			pub fn skip(mut self, value: i64) -> Self {
-				self.args = self.args.skip(value);
+				self.0 = self.0.skip(value);
 				self
 			}
 			pub fn take(mut self, value: i64) -> Self {
-				self.args = self.args.take(value);
+				self.0 = self.0.take(value);
 				self
 			}
 			pub fn cursor(mut self, value: impl Into<tag_on_file::Cursor>) -> Self {
-				self.args = self.args.cursor(value.into());
+				self.0 = self.0.cursor(value.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::TagOnFile(fetch.args)
+				WithParam::TagOnFile(fetch.0)
 			}
 		}
 		pub fn fetch(params: Vec<tag_on_file::WhereParam>) -> Fetch {
-			Fetch {
-				args: tag_on_file::ManyArgs::new(params),
-			}
+			Fetch(tag_on_file::ManyArgs::new(params))
 		}
 		pub fn link<T: From<Link>>(params: Vec<tag_on_file::UniqueWhereParam>) -> T {
 			Link(params).into()
@@ -6914,7 +7174,7 @@ pub mod file {
 		pub fn unlink(params: Vec<tag_on_file::UniqueWhereParam>) -> SetParam {
 			SetParam::UnlinkTagOnFile(params)
 		}
-		pub struct Link(Vec<tag_on_file::UniqueWhereParam>);
+		pub struct Link(pub Vec<tag_on_file::UniqueWhereParam>);
 		impl From<Link> for SetParam {
 			fn from(value: Link) -> Self {
 				Self::LinkTagOnFile(value.0)
@@ -6922,7 +7182,7 @@ pub mod file {
 		}
 	}
 	pub fn _outputs() -> Vec<Selection> {
-		["local_id", "cas_id"]
+		["local_id", "cas_id", "size_in_bytes"]
 			.into_iter()
 			.map(|o| {
 				let builder = Selection::builder(o);
@@ -6936,6 +7196,8 @@ pub mod file {
 		pub local_id: i32,
 		#[serde(rename = "cas_id")]
 		pub cas_id: Vec<u8>,
+		#[serde(rename = "size_in_bytes")]
+		pub size_in_bytes: i32,
 		#[serde(rename = "file_paths")]
 		pub file_paths: Option<Vec<super::file_path::Data>>,
 		#[serde(rename = "TagOnFile")]
@@ -6990,6 +7252,11 @@ pub mod file {
 		MultiplyLocalId(i32),
 		DivideLocalId(i32),
 		SetCasId(Vec<u8>),
+		SetSizeInBytes(i32),
+		IncrementSizeInBytes(i32),
+		DecrementSizeInBytes(i32),
+		MultiplySizeInBytes(i32),
+		DivideSizeInBytes(i32),
 		LinkFilePaths(Vec<super::file_path::UniqueWhereParam>),
 		UnlinkFilePaths(Vec<super::file_path::UniqueWhereParam>),
 		LinkTagOnFile(Vec<super::tag_on_file::UniqueWhereParam>),
@@ -7030,6 +7297,37 @@ pub mod file {
 					)]),
 				),
 				SetParam::SetCasId(value) => ("cas_id".to_string(), PrismaValue::Bytes(value)),
+				SetParam::SetSizeInBytes(value) => {
+					("size_in_bytes".to_string(), PrismaValue::Int(value as i64))
+				}
+				SetParam::IncrementSizeInBytes(value) => (
+					"size_in_bytes".to_string(),
+					PrismaValue::Object(vec![(
+						"increment".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
+				SetParam::DecrementSizeInBytes(value) => (
+					"size_in_bytes".to_string(),
+					PrismaValue::Object(vec![(
+						"decrement".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
+				SetParam::MultiplySizeInBytes(value) => (
+					"size_in_bytes".to_string(),
+					PrismaValue::Object(vec![(
+						"multiply".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
+				SetParam::DivideSizeInBytes(value) => (
+					"size_in_bytes".to_string(),
+					PrismaValue::Object(vec![(
+						"divide".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
 				SetParam::LinkFilePaths(where_params) => (
 					"file_paths".to_string(),
 					PrismaValue::Object(vec![(
@@ -7089,6 +7387,7 @@ pub mod file {
 	pub enum OrderByParam {
 		LocalId(Direction),
 		CasId(Direction),
+		SizeInBytes(Direction),
 	}
 	impl Into<(String, PrismaValue)> for OrderByParam {
 		fn into(self) -> (String, PrismaValue) {
@@ -7099,6 +7398,10 @@ pub mod file {
 				),
 				Self::CasId(direction) => (
 					"cas_id".to_string(),
+					PrismaValue::String(direction.to_string()),
+				),
+				Self::SizeInBytes(direction) => (
+					"size_in_bytes".to_string(),
 					PrismaValue::String(direction.to_string()),
 				),
 			}
@@ -7134,6 +7437,14 @@ pub mod file {
 		CasIdInVec(Vec<Vec<u8>>),
 		CasIdNotInVec(Vec<Vec<u8>>),
 		CasIdNot(Vec<u8>),
+		SizeInBytesEquals(i32),
+		SizeInBytesInVec(Vec<i32>),
+		SizeInBytesNotInVec(Vec<i32>),
+		SizeInBytesLt(i32),
+		SizeInBytesLte(i32),
+		SizeInBytesGt(i32),
+		SizeInBytesGte(i32),
+		SizeInBytesNot(i32),
 		FilePathsSome(Vec<super::file_path::WhereParam>),
 		FilePathsEvery(Vec<super::file_path::WhereParam>),
 		FilePathsNone(Vec<super::file_path::WhereParam>),
@@ -7269,6 +7580,72 @@ pub mod file {
 						PrismaValue::Bytes(value),
 					)]),
 				),
+				Self::SizeInBytesEquals(value) => (
+					"size_in_bytes".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"equals".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
+				Self::SizeInBytesInVec(value) => (
+					"size_in_bytes".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"in".to_string(),
+						PrismaValue::List(
+							value
+								.into_iter()
+								.map(|v| PrismaValue::Int(v as i64))
+								.collect(),
+						),
+					)]),
+				),
+				Self::SizeInBytesNotInVec(value) => (
+					"size_in_bytes".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"notIn".to_string(),
+						PrismaValue::List(
+							value
+								.into_iter()
+								.map(|v| PrismaValue::Int(v as i64))
+								.collect(),
+						),
+					)]),
+				),
+				Self::SizeInBytesLt(value) => (
+					"size_in_bytes".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"lt".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
+				Self::SizeInBytesLte(value) => (
+					"size_in_bytes".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"lte".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
+				Self::SizeInBytesGt(value) => (
+					"size_in_bytes".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"gt".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
+				Self::SizeInBytesGte(value) => (
+					"size_in_bytes".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"gte".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
+				Self::SizeInBytesNot(value) => (
+					"size_in_bytes".to_string(),
+					SerializedWhereValue::Object(vec![(
+						"not".to_string(),
+						PrismaValue::Int(value as i64),
+					)]),
+				),
 				Self::FilePathsSome(value) => (
 					"file_paths".to_string(),
 					SerializedWhereValue::Object(vec![(
@@ -7350,6 +7727,7 @@ pub mod file {
 	}
 	pub type UniqueArgs = prisma_client_rust::UniqueArgs<WithParam>;
 	pub type ManyArgs = prisma_client_rust::ManyArgs<WhereParam, WithParam, OrderByParam, Cursor>;
+	pub type Count<'a> = prisma_client_rust::Count<'a, WhereParam, OrderByParam, Cursor>;
 	pub type Create<'a> = prisma_client_rust::Create<'a, SetParam, WithParam, Data>;
 	pub type FindUnique<'a> =
 		prisma_client_rust::FindUnique<'a, WhereParam, WithParam, SetParam, Data>;
@@ -7373,49 +7751,91 @@ pub mod file {
 		pub client: &'a PrismaClient,
 	}
 	impl<'a> Actions<'a> {
-		pub fn create(self, cas_id: cas_id::Set, mut _params: Vec<SetParam>) -> Create<'a> {
-			_params.push(cas_id.into());
+		pub fn find_unique(self, _where: UniqueWhereParam) -> FindUnique<'a> {
+			FindUnique::new(
+				self.client._new_query_context(),
+				QueryInfo::new("File", _outputs()),
+				_where.into(),
+			)
+		}
+		pub fn find_first(self, _where: Vec<WhereParam>) -> FindFirst<'a> {
+			FindFirst::new(
+				self.client._new_query_context(),
+				QueryInfo::new("File", _outputs()),
+				_where,
+			)
+		}
+		pub fn find_many(self, _where: Vec<WhereParam>) -> FindMany<'a> {
+			FindMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("File", _outputs()),
+				_where,
+			)
+		}
+		pub fn create(self, cas_id: Vec<u8>, mut _params: Vec<SetParam>) -> Create<'a> {
+			_params.push(cas_id::set(cas_id));
 			Create::new(
 				self.client._new_query_context(),
 				QueryInfo::new("File", _outputs()),
 				_params,
 			)
 		}
-		pub fn find_unique(self, param: UniqueWhereParam) -> FindUnique<'a> {
-			FindUnique::new(
+		pub fn update(self, _where: UniqueWhereParam, _params: Vec<SetParam>) -> Update<'a> {
+			Update::new(
 				self.client._new_query_context(),
 				QueryInfo::new("File", _outputs()),
-				param.into(),
+				_where.into(),
+				_params,
+				vec![],
 			)
 		}
-		pub fn find_first(self, params: Vec<WhereParam>) -> FindFirst<'a> {
-			FindFirst::new(
+		pub fn update_many(
+			self,
+			_where: Vec<WhereParam>,
+			_params: Vec<SetParam>,
+		) -> UpdateMany<'a> {
+			UpdateMany::new(
 				self.client._new_query_context(),
 				QueryInfo::new("File", _outputs()),
-				params,
+				_where,
+				_params,
 			)
 		}
-		pub fn find_many(self, params: Vec<WhereParam>) -> FindMany<'a> {
-			FindMany::new(
+		pub fn delete(self, _where: UniqueWhereParam) -> Delete<'a> {
+			Delete::new(
 				self.client._new_query_context(),
 				QueryInfo::new("File", _outputs()),
-				params,
+				_where.into(),
+				vec![],
+			)
+		}
+		pub fn delete_many(self, _where: Vec<WhereParam>) -> DeleteMany<'a> {
+			DeleteMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("File", _outputs()),
+				_where.into(),
 			)
 		}
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			_create: (cas_id::Set, Vec<SetParam>),
+			(cas_id, mut _params): (Vec<u8>, Vec<SetParam>),
 			_update: Vec<SetParam>,
 		) -> Upsert<'a> {
-			let (cas_id, mut _params) = _create;
-			_params.push(cas_id.into());
+			_params.push(cas_id::set(cas_id));
 			Upsert::new(
 				self.client._new_query_context(),
 				QueryInfo::new("File", _outputs()),
 				_where.into(),
 				_params,
 				_update,
+			)
+		}
+		pub fn count(self, _where: Vec<WhereParam>) -> Count<'a> {
+			Count::new(
+				self.client._new_query_context(),
+				QueryInfo::new("File", _outputs()),
+				_where,
 			)
 		}
 	}
@@ -7472,7 +7892,7 @@ pub mod tag {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideLocalId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetLocalId(value.0)
@@ -7504,7 +7924,7 @@ pub mod tag {
 		pub fn not(value: Vec<u8>) -> WhereParam {
 			WhereParam::IdNot(value)
 		}
-		pub struct Set(Vec<u8>);
+		pub struct Set(pub Vec<u8>);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetId(value.0)
@@ -7554,7 +7974,7 @@ pub mod tag {
 		pub fn not(value: String) -> WhereParam {
 			WhereParam::NameNot(value)
 		}
-		pub struct Set(String);
+		pub struct Set(pub String);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetName(value.0)
@@ -7574,40 +7994,36 @@ pub mod tag {
 		pub fn none(value: Vec<tag_on_file::WhereParam>) -> WhereParam {
 			WhereParam::TagOnFileNone(value)
 		}
-		pub struct Fetch {
-			args: tag_on_file::ManyArgs,
-		}
+		pub struct Fetch(pub tag_on_file::ManyArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<tag_on_file::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 			pub fn order_by(mut self, param: tag_on_file::OrderByParam) -> Self {
-				self.args = self.args.order_by(param);
+				self.0 = self.0.order_by(param);
 				self
 			}
 			pub fn skip(mut self, value: i64) -> Self {
-				self.args = self.args.skip(value);
+				self.0 = self.0.skip(value);
 				self
 			}
 			pub fn take(mut self, value: i64) -> Self {
-				self.args = self.args.take(value);
+				self.0 = self.0.take(value);
 				self
 			}
 			pub fn cursor(mut self, value: impl Into<tag_on_file::Cursor>) -> Self {
-				self.args = self.args.cursor(value.into());
+				self.0 = self.0.cursor(value.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::TagOnFile(fetch.args)
+				WithParam::TagOnFile(fetch.0)
 			}
 		}
 		pub fn fetch(params: Vec<tag_on_file::WhereParam>) -> Fetch {
-			Fetch {
-				args: tag_on_file::ManyArgs::new(params),
-			}
+			Fetch(tag_on_file::ManyArgs::new(params))
 		}
 		pub fn link<T: From<Link>>(params: Vec<tag_on_file::UniqueWhereParam>) -> T {
 			Link(params).into()
@@ -7615,7 +8031,7 @@ pub mod tag {
 		pub fn unlink(params: Vec<tag_on_file::UniqueWhereParam>) -> SetParam {
 			SetParam::UnlinkTagOnFile(params)
 		}
-		pub struct Link(Vec<tag_on_file::UniqueWhereParam>);
+		pub struct Link(pub Vec<tag_on_file::UniqueWhereParam>);
 		impl From<Link> for SetParam {
 			fn from(value: Link) -> Self {
 				Self::LinkTagOnFile(value.0)
@@ -8076,6 +8492,7 @@ pub mod tag {
 	}
 	pub type UniqueArgs = prisma_client_rust::UniqueArgs<WithParam>;
 	pub type ManyArgs = prisma_client_rust::ManyArgs<WhereParam, WithParam, OrderByParam, Cursor>;
+	pub type Count<'a> = prisma_client_rust::Count<'a, WhereParam, OrderByParam, Cursor>;
 	pub type Create<'a> = prisma_client_rust::Create<'a, SetParam, WithParam, Data>;
 	pub type FindUnique<'a> =
 		prisma_client_rust::FindUnique<'a, WhereParam, WithParam, SetParam, Data>;
@@ -8099,49 +8516,93 @@ pub mod tag {
 		pub client: &'a PrismaClient,
 	}
 	impl<'a> Actions<'a> {
-		pub fn create(self, id: id::Set, mut _params: Vec<SetParam>) -> Create<'a> {
-			_params.push(id.into());
+		pub fn find_unique(self, _where: UniqueWhereParam) -> FindUnique<'a> {
+			FindUnique::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Tag", _outputs()),
+				_where.into(),
+			)
+		}
+		pub fn find_first(self, _where: Vec<WhereParam>) -> FindFirst<'a> {
+			FindFirst::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Tag", _outputs()),
+				_where,
+			)
+		}
+		pub fn find_many(self, _where: Vec<WhereParam>) -> FindMany<'a> {
+			FindMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Tag", _outputs()),
+				_where,
+			)
+		}
+		pub fn create(self, id: Vec<u8>, name: String, mut _params: Vec<SetParam>) -> Create<'a> {
+			_params.push(id::set(id));
+			_params.push(name::set(name));
 			Create::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Tag", _outputs()),
 				_params,
 			)
 		}
-		pub fn find_unique(self, param: UniqueWhereParam) -> FindUnique<'a> {
-			FindUnique::new(
+		pub fn update(self, _where: UniqueWhereParam, _params: Vec<SetParam>) -> Update<'a> {
+			Update::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Tag", _outputs()),
-				param.into(),
+				_where.into(),
+				_params,
+				vec![],
 			)
 		}
-		pub fn find_first(self, params: Vec<WhereParam>) -> FindFirst<'a> {
-			FindFirst::new(
+		pub fn update_many(
+			self,
+			_where: Vec<WhereParam>,
+			_params: Vec<SetParam>,
+		) -> UpdateMany<'a> {
+			UpdateMany::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Tag", _outputs()),
-				params,
+				_where,
+				_params,
 			)
 		}
-		pub fn find_many(self, params: Vec<WhereParam>) -> FindMany<'a> {
-			FindMany::new(
+		pub fn delete(self, _where: UniqueWhereParam) -> Delete<'a> {
+			Delete::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Tag", _outputs()),
-				params,
+				_where.into(),
+				vec![],
+			)
+		}
+		pub fn delete_many(self, _where: Vec<WhereParam>) -> DeleteMany<'a> {
+			DeleteMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Tag", _outputs()),
+				_where.into(),
 			)
 		}
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			_create: (id::Set, Vec<SetParam>),
+			(id, name, mut _params): (Vec<u8>, String, Vec<SetParam>),
 			_update: Vec<SetParam>,
 		) -> Upsert<'a> {
-			let (id, mut _params) = _create;
-			_params.push(id.into());
+			_params.push(id::set(id));
+			_params.push(name::set(name));
 			Upsert::new(
 				self.client._new_query_context(),
 				QueryInfo::new("Tag", _outputs()),
 				_where.into(),
 				_params,
 				_update,
+			)
+		}
+		pub fn count(self, _where: Vec<WhereParam>) -> Count<'a> {
+			Count::new(
+				self.client._new_query_context(),
+				QueryInfo::new("Tag", _outputs()),
+				_where,
 			)
 		}
 	}
@@ -8195,7 +8656,7 @@ pub mod tag_on_file {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideTagId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetTagId(value.0)
@@ -8212,24 +8673,20 @@ pub mod tag_on_file {
 		pub fn is_not(value: Vec<tag::WhereParam>) -> WhereParam {
 			WhereParam::TagIsNot(value)
 		}
-		pub struct Fetch {
-			args: tag::UniqueArgs,
-		}
+		pub struct Fetch(pub tag::UniqueArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<tag::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::Tag(fetch.args)
+				WithParam::Tag(fetch.0)
 			}
 		}
 		pub fn fetch() -> Fetch {
-			Fetch {
-				args: tag::UniqueArgs::new(),
-			}
+			Fetch(tag::UniqueArgs::new())
 		}
 		pub fn link<T: From<Link>>(value: tag::UniqueWhereParam) -> T {
 			Link(value).into()
@@ -8287,7 +8744,7 @@ pub mod tag_on_file {
 		pub fn divide(value: i32) -> SetParam {
 			SetParam::DivideFileId(value)
 		}
-		pub struct Set(i32);
+		pub struct Set(pub i32);
 		impl From<Set> for SetParam {
 			fn from(value: Set) -> Self {
 				Self::SetFileId(value.0)
@@ -8304,24 +8761,20 @@ pub mod tag_on_file {
 		pub fn is_not(value: Vec<file::WhereParam>) -> WhereParam {
 			WhereParam::FileIsNot(value)
 		}
-		pub struct Fetch {
-			args: file::UniqueArgs,
-		}
+		pub struct Fetch(pub file::UniqueArgs);
 		impl Fetch {
 			pub fn with(mut self, params: impl Into<file::WithParam>) -> Self {
-				self.args = self.args.with(params.into());
+				self.0 = self.0.with(params.into());
 				self
 			}
 		}
 		impl From<Fetch> for WithParam {
 			fn from(fetch: Fetch) -> Self {
-				WithParam::File(fetch.args)
+				WithParam::File(fetch.0)
 			}
 		}
 		pub fn fetch() -> Fetch {
-			Fetch {
-				args: file::UniqueArgs::new(),
-			}
+			Fetch(file::UniqueArgs::new())
 		}
 		pub fn link<T: From<Link>>(value: file::UniqueWhereParam) -> T {
 			Link(value).into()
@@ -8779,6 +9232,7 @@ pub mod tag_on_file {
 	}
 	pub type UniqueArgs = prisma_client_rust::UniqueArgs<WithParam>;
 	pub type ManyArgs = prisma_client_rust::ManyArgs<WhereParam, WithParam, OrderByParam, Cursor>;
+	pub type Count<'a> = prisma_client_rust::Count<'a, WhereParam, OrderByParam, Cursor>;
 	pub type Create<'a> = prisma_client_rust::Create<'a, SetParam, WithParam, Data>;
 	pub type FindUnique<'a> =
 		prisma_client_rust::FindUnique<'a, WhereParam, WithParam, SetParam, Data>;
@@ -8802,56 +9256,102 @@ pub mod tag_on_file {
 		pub client: &'a PrismaClient,
 	}
 	impl<'a> Actions<'a> {
+		pub fn find_unique(self, _where: UniqueWhereParam) -> FindUnique<'a> {
+			FindUnique::new(
+				self.client._new_query_context(),
+				QueryInfo::new("TagOnFile", _outputs()),
+				_where.into(),
+			)
+		}
+		pub fn find_first(self, _where: Vec<WhereParam>) -> FindFirst<'a> {
+			FindFirst::new(
+				self.client._new_query_context(),
+				QueryInfo::new("TagOnFile", _outputs()),
+				_where,
+			)
+		}
+		pub fn find_many(self, _where: Vec<WhereParam>) -> FindMany<'a> {
+			FindMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("TagOnFile", _outputs()),
+				_where,
+			)
+		}
 		pub fn create(
 			self,
-			tag: tag::Link,
-			file: file::Link,
+			tag: super::tag::UniqueWhereParam,
+			file: super::file::UniqueWhereParam,
 			mut _params: Vec<SetParam>,
 		) -> Create<'a> {
-			_params.push(tag.into());
-			_params.push(file.into());
+			_params.push(tag::link(tag));
+			_params.push(file::link(file));
 			Create::new(
 				self.client._new_query_context(),
 				QueryInfo::new("TagOnFile", _outputs()),
 				_params,
 			)
 		}
-		pub fn find_unique(self, param: UniqueWhereParam) -> FindUnique<'a> {
-			FindUnique::new(
+		pub fn update(self, _where: UniqueWhereParam, _params: Vec<SetParam>) -> Update<'a> {
+			Update::new(
 				self.client._new_query_context(),
 				QueryInfo::new("TagOnFile", _outputs()),
-				param.into(),
+				_where.into(),
+				_params,
+				vec![],
 			)
 		}
-		pub fn find_first(self, params: Vec<WhereParam>) -> FindFirst<'a> {
-			FindFirst::new(
+		pub fn update_many(
+			self,
+			_where: Vec<WhereParam>,
+			_params: Vec<SetParam>,
+		) -> UpdateMany<'a> {
+			UpdateMany::new(
 				self.client._new_query_context(),
 				QueryInfo::new("TagOnFile", _outputs()),
-				params,
+				_where,
+				_params,
 			)
 		}
-		pub fn find_many(self, params: Vec<WhereParam>) -> FindMany<'a> {
-			FindMany::new(
+		pub fn delete(self, _where: UniqueWhereParam) -> Delete<'a> {
+			Delete::new(
 				self.client._new_query_context(),
 				QueryInfo::new("TagOnFile", _outputs()),
-				params,
+				_where.into(),
+				vec![],
+			)
+		}
+		pub fn delete_many(self, _where: Vec<WhereParam>) -> DeleteMany<'a> {
+			DeleteMany::new(
+				self.client._new_query_context(),
+				QueryInfo::new("TagOnFile", _outputs()),
+				_where.into(),
 			)
 		}
 		pub fn upsert(
 			self,
 			_where: UniqueWhereParam,
-			_create: (tag::Link, file::Link, Vec<SetParam>),
+			(tag, file, mut _params): (
+				super::tag::UniqueWhereParam,
+				super::file::UniqueWhereParam,
+				Vec<SetParam>,
+			),
 			_update: Vec<SetParam>,
 		) -> Upsert<'a> {
-			let (tag, file, mut _params) = _create;
-			_params.push(tag.into());
-			_params.push(file.into());
+			_params.push(tag::link(tag));
+			_params.push(file::link(file));
 			Upsert::new(
 				self.client._new_query_context(),
 				QueryInfo::new("TagOnFile", _outputs()),
 				_where.into(),
 				_params,
 				_update,
+			)
+		}
+		pub fn count(self, _where: Vec<WhereParam>) -> Count<'a> {
+			Count::new(
+				self.client._new_query_context(),
+				QueryInfo::new("TagOnFile", _outputs()),
+				_where,
 			)
 		}
 	}
@@ -9087,12 +9587,15 @@ pub mod _prisma {
 		LocalId,
 		#[serde(rename = "cas_id")]
 		CasId,
+		#[serde(rename = "size_in_bytes")]
+		SizeInBytes,
 	}
 	impl ToString for FileScalarFieldEnum {
 		fn to_string(&self) -> String {
 			match self {
 				Self::LocalId => "local_id".to_string(),
 				Self::CasId => "cas_id".to_string(),
+				Self::SizeInBytes => "size_in_bytes".to_string(),
 			}
 		}
 	}

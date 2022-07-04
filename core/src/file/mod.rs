@@ -30,7 +30,7 @@ pub struct File {
 	pub has_video_preview: bool,
 	// pub encryption: EncryptionAlgorithm,
 	pub ipfs_id: Option<String>,
-	pub note: Option<String>,
+	// pub note: Option<String>,
 
 	pub date_created: chrono::DateTime<chrono::Utc>,
 	pub date_modified: chrono::DateTime<chrono::Utc>,
@@ -93,7 +93,7 @@ impl Into<File> for file::Data {
 			has_thumbnail: self.has_thumbnail,
 			has_thumbstrip: self.has_thumbstrip,
 			has_video_preview: self.has_video_preview,
-			note: self.note,
+			// note: self.note,
 			date_created: self.date_created.into(),
 			date_modified: self.date_modified.into(),
 			date_indexed: self.date_indexed.into(),

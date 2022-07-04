@@ -79,7 +79,7 @@ model Location {
     id       Bytes @unique
 
     node_id Int
-    node    Node @relation(fields: [node_id], references: [local_id]) /// @node
+    node    Node @relation(fields: [node_id], references: [local_id]) // @node
 
     name String
 
@@ -90,7 +90,7 @@ model Location {
 
 /// @owned(owner: location)
 model FilePath {
-    id Int 
+    id Int
 
     location_id Int
     location    Location @relation(fields: [location_id], references: [local_id])
@@ -113,10 +113,12 @@ model FilePath {
 /// Existence is implied based on an equivalent file path existing, and could be
 /// created multiple times.
 ///
-/// @shared(id: cas_id)
+/// @shared(id: cas_id, create: Atomic)
 model File {
     local_id Int   @id @default(autoincrement())
     cas_id   Bytes @unique
+
+    size_in_bytes Int @default(0)
 
     file_paths FilePath[]
     TagOnFile  TagOnFile[]
@@ -124,12 +126,12 @@ model File {
     @@map("files")
 }
 
-/// @shared(id: id)
+/// @shared(id: id, create: Unique)
 model Tag {
     local_id Int   @id @default(autoincrement())
     id       Bytes @unique
 
-    name String @default("")
+    name String
 
     TagOnFile TagOnFile[]
     @@map("tags")

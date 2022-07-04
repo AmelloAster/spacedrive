@@ -27,19 +27,37 @@ use crate::{Id, SerializedField};
 /// Deleting many relations use the operation's `relation`, `relation_item` and `relation_group` to identify the relation and delete it.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RelationOperation {
-	pub relation_item: Id,
-	pub relation_group: Id,
+	#[serde(rename = "r")]
 	pub relation: String,
-	#[serde(flatten)]
-	pub data: RelationRecordOperationData,
+	#[serde(rename = "ri")]
+	pub relation_item: Id,
+	#[serde(rename = "rg")]
+	pub relation_group: Id,
+	#[serde(rename = "d")]
+	pub data: RelationOperationData,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum RelationOperationData {
+	#[serde(rename = "c")]
+	Create,
+	#[serde(rename = "u")]
+	Update {
+		#[serde(rename = "f")]
+		field: String,
+		#[serde(rename = "v'")]
+		value: Value,
+	},
+	#[serde(rename = "d")]
+	Delete,
 }
 
 impl RelationOperation {
-	fn new(
+	pub fn new(
+		relation: String,
 		relation_item: Id,
 		relation_group: Id,
-		relation: String,
-		data: RelationRecordOperationData,
+		data: RelationOperationData,
 	) -> Self {
 		Self {
 			relation_item,
@@ -48,54 +66,27 @@ impl RelationOperation {
 			data,
 		}
 	}
-
-	pub fn new_create(relation_item: Id, relation_group: Id, relation: &str) -> Self {
-		Self::new(
-			relation_item,
-			relation_group,
-			relation.to_string(),
-			RelationRecordOperationData::Create,
-		)
-	}
-
-	pub fn new_update(
-		relation_item: Id,
-		relation_group: Id,
-		relation: &str,
-		field: String,
-		value: Value,
-	) -> Self {
-		Self::new(
-			relation_item,
-			relation_group,
-			relation.to_string(),
-			RelationRecordOperationData::Update { field, value },
-		)
-	}
-
-	pub fn new_delete(relation_item: Id, relation_group: Id, relation: &str) -> Self {
-		Self::new(
-			relation_item,
-			relation_group,
-			relation.to_string(),
-			RelationRecordOperationData::Delete,
-		)
-	}
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(tag = "type")]
-pub enum RelationRecordOperationData {
-	Create,
-	Update { field: String, value: Value },
-	Delete,
+impl RelationOperationData {
+	pub fn create() -> Self {
+		Self::Create
+	}
+
+	pub fn update(field: String, value: Value) -> Self {
+		Self::Update { field, value }
+	}
+
+	pub fn delete() -> Self {
+		Self::Delete
+	}
 }
 
 pub trait RelationRecord {
 	type Field: Into<SerializedField>;
 
 	const RELATION_NAME: &'static str;
-	
+
 	fn create_operation(relation_item: Id, relation_group: Id) -> RelationOperation;
 	fn update_operation(
 		relation_item: Id,

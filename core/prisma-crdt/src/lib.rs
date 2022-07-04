@@ -30,12 +30,46 @@ pub struct CRDTOperation {
 	pub typ: CRDTOperationType,
 }
 
+impl CRDTOperation {
+	pub fn new(node: Id, timestamp: NTP64, typ: CRDTOperationType) -> Self {
+		Self {
+			node,
+			timestamp,
+			typ,
+		}
+	}
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum CRDTOperationType {
 	Shared(SharedOperation),
 	Relation(RelationOperation),
 	Owned(OwnedOperation),
+}
+
+impl CRDTOperationType {
+	pub fn shared(record_id: Vec<u8>, model: &str, data: SharedOperationData) -> Self {
+		Self::Shared(SharedOperation {
+			record_id: record_id.into(),
+			model: model.to_string(),
+			data,
+		})
+	}
+
+	pub fn relation(
+		relation: &str,
+		relation_item: Id,
+		relation_group: Id,
+		data: RelationOperationData,
+	) -> Self {
+		Self::Relation(RelationOperation::new(
+			relation.to_string(),
+			relation_item,
+			relation_group,
+			data,
+		))
+	}
 }
 
 pub struct CRDTStore<Database> {

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::{Id, SerializedField};
+use crate::Id;
 
 /// An operation on a shared record CRDT.
 /// Shared records are identified by their `model` (db table) and `id` (uuid).
@@ -27,44 +27,14 @@ pub struct SharedOperation {
 	pub record_id: Id, // Uuid,
 	#[serde(rename = "m")]
 	pub model: String,
-	#[serde(flatten)]
+	#[serde(rename = "d")]
 	pub data: SharedOperationData,
-}
-
-impl SharedOperation {
-	fn new(record_id: Id, model: String, data: SharedOperationData) -> Self {
-		Self {
-			record_id,
-			model,
-			data,
-		}
-	}
-
-	pub fn new_create(record_id: Id, model: &str, data: Map<String, Value>) -> Self {
-		SharedOperation::new(
-			record_id,
-			model.to_string(),
-			SharedOperationData::Create(data),
-		)
-	}
-
-	pub fn new_update(record_id: Id, model: &str, field: String, value: Value) -> Self {
-		SharedOperation::new(
-			record_id,
-			model.to_string(),
-			SharedOperationData::Update { field, value },
-		)
-	}
-
-	pub fn new_delete(record_id: Id, model: &str) -> Self {
-		SharedOperation::new(record_id, model.to_string(), SharedOperationData::Delete)
-	}
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum SharedOperationData {
 	#[serde(rename = "c")]
-	Create(Map<String, Value>),
+	Create(SharedOperationCreateData),
 	#[serde(rename = "u")]
 	Update {
 		#[serde(rename = "f")]
@@ -76,18 +46,28 @@ pub enum SharedOperationData {
 	Delete,
 }
 
-// TODO: Use UUID
-pub trait SharedRecord {
-	type Field: Into<SerializedField>;
-	type RequiredFields;
+impl SharedOperationData {
+	pub fn create_unique(data: Map<String, Value>) -> Self {
+		Self::Create(SharedOperationCreateData::Unique(data))
+	}
 
-	const MODEL_NAME: &'static str;
+	pub fn create_atomic() -> Self {
+		Self::Create(SharedOperationCreateData::Atomic)
+	}
 
-	fn create_operation(
-		id: Id,
-		required_fields: Self::RequiredFields,
-		fields: Vec<Self::Field>,
-	) -> SharedOperation;
-	fn update_operation(id: Id, field: Self::Field) -> SharedOperation;
-	fn delete_operation(id: Id) -> SharedOperation;
+	pub fn update(field: String, value: Value) -> Self {
+		Self::Update { field, value }
+	}
+
+	pub fn delete() -> Self {
+		Self::Delete
+	}
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum SharedOperationCreateData {
+	#[serde(rename = "u")]
+	Unique(Map<String, Value>),
+	#[serde(rename = "a")]
+	Atomic,
 }
