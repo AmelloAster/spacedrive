@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::Id;
-
 /// An operation on a shared record CRDT.
 /// Shared records are identified by their `model` (db table) and `id` (uuid).
 ///
@@ -24,7 +22,7 @@ use crate::Id;
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SharedOperation {
 	#[serde(rename = "r")]
-	pub record_id: Id, // Uuid,
+	pub record_id: Value, // Uuid,
 	#[serde(rename = "m")]
 	pub model: String,
 	#[serde(rename = "d")]

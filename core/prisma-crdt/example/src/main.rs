@@ -55,7 +55,7 @@ async fn producer_example(client: PrismaClient, node: prisma::node::Data) {
 		.await
 		.unwrap();
 
-	let data = client
+	let file_path = client
 		.file_path()
 		.create(0, location.local_id, "File 0".to_string(), vec![])
 		.exec()
@@ -72,7 +72,7 @@ async fn producer_example(client: PrismaClient, node: prisma::node::Data) {
 	client
 		.file_path()
 		.update(
-			prisma_crdt::file_path::location_id_id(data.location_id, data.id),
+			prisma_crdt::file_path::location_id_id(file_path.location_id, file_path.id),
 			vec![prisma_crdt::file_path::file_id::set(Some(file.local_id))],
 		)
 		.exec()
@@ -96,6 +96,30 @@ async fn producer_example(client: PrismaClient, node: prisma::node::Data) {
 	client
 		.tag()
 		.delete(prisma_crdt::tag::local_id::equals(tag.local_id))
+		.exec()
+		.await
+		.unwrap();
+
+	client
+		.file_path()
+		.delete(prisma_crdt::file_path::location_id_id(
+			file_path.location_id,
+			file_path.id,
+		))
+		.exec()
+		.await
+		.unwrap();
+
+	client
+		.file()
+		.delete(prisma_crdt::file::local_id::equals(file.local_id))
+		.exec()
+		.await
+		.unwrap();
+
+	client
+		.location()
+		.delete(prisma_crdt::location::local_id::equals(location.local_id))
 		.exec()
 		.await
 		.unwrap();
@@ -129,8 +153,10 @@ async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
 				"m": "FilePath",
 				"d": [{
 					"c": {
-						"id": 0,
-						"location_id": [0],
+						"_id": {
+							"id": 0,
+							"location_id": [0],
+						},
 						"name": "File 0"
 					}
 				}]
@@ -180,8 +206,10 @@ async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
 				"m": "FilePath",
 				"d": [{
 					"u": {
-						"id": 0,
-						"location_id": [0],
+						"_id": {
+							"id": 0,
+							"location_id": [0],
+						},
 						"_": [{
 							"file_id": 1
 						}]
@@ -234,6 +262,50 @@ async fn consumer_example(client: PrismaClient, node: prisma::node::Data) {
 			  "r": [0],
 			  "m": "Tag",
 			  "d": "d"
+			}))
+			.unwrap(),
+		)
+		.await;
+
+	client
+		._execute_operation(
+			serde_json::from_value(json!({
+				"n": [0],
+				"t": 0,
+				"m": "FilePath",
+				"d": [{
+					"d": {
+						"location_id": [0],
+						"id": 0
+					}
+				}]
+			}))
+			.unwrap(),
+		)
+		.await;
+
+	client
+		._execute_operation(
+			serde_json::from_value(json!({
+				"n": [0],
+				"t": 0,
+				"r": [0],
+				"m": "File",
+				"d": "d"
+			}))
+			.unwrap(),
+		)
+		.await;
+
+	client
+		._execute_operation(
+			serde_json::from_value(json!({
+				"n": [0],
+				"t": 0,
+				"m": "Location",
+				"d": [{
+					"d": [0]
+				}]
 			}))
 			.unwrap(),
 		)

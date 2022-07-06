@@ -49,10 +49,10 @@ pub enum CRDTOperationType {
 }
 
 impl CRDTOperationType {
-	pub fn shared(record_id: Vec<u8>, model: &str, data: SharedOperationData) -> Self {
+	pub fn shared(model: &str, record_id: Value, data: SharedOperationData) -> Self {
 		Self::Shared(SharedOperation {
-			record_id: record_id.into(),
 			model: model.to_string(),
+			record_id,
 			data,
 		})
 	}

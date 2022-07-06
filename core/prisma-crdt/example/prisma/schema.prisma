@@ -8,10 +8,10 @@ generator client {
     output   = "../src/prisma.rs"
 }
 
-// generator crdt {
-//     provider = "cargo prisma-crdt"
-//     output   = "../src/_prisma-crdt.rs"
-// }
+generator crdt {
+    provider = "cargo prisma-crdt"
+    output   = "../src/_prisma-crdt.rs"
+}
 
 /// @local
 model OwnedOperation {
@@ -113,7 +113,7 @@ model FilePath {
 /// A unique record that can represent multiple physical copies of a file.
 /// Existence is implied based on an equivalent file path existing, and could be
 /// created multiple times.
-///
+
 /// @shared(id: cas_id, create: Atomic)
 model File {
     local_id Int   @id @default(autoincrement())
