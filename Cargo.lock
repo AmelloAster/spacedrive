@@ -4144,35 +4144,12 @@ name = "prisma-client-rust-cli"
 version = "0.5.2"
 dependencies = [
  "datamodel",
- "prisma-client-rust-sdk 0.5.2",
+ "prisma-client-rust-sdk",
  "prisma-models",
  "proc-macro2",
  "query-core",
  "quote",
  "request-handlers",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "syn",
-]
-
-[[package]]
-name = "prisma-client-rust-sdk"
-version = "0.5.1"
-source = "git+https://github.com/Brendonovich/prisma-client-rust.git?branch=sdk#e07fefcaaee6dbd962d6e77091f77af850473c03"
-dependencies = [
- "convert_case 0.5.0",
- "datamodel",
- "directories",
- "flate2",
- "http",
- "prisma-models",
- "proc-macro2",
- "query-core",
- "quote",
- "regex",
- "request-handlers",
- "reqwest",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -4207,7 +4184,10 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
- "prisma-client-rust-sdk 0.5.1",
+ "nom",
+ "prisma-client-rust-sdk",
+ "proc-macro2",
+ "quote",
  "serde",
  "serde_json",
  "tokio",
@@ -4314,9 +4294,9 @@ checksum = "dbf0c48bc1d91375ae5c3cd81e3722dff1abcf81a30960240640d223f59fe0e5"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.39"
+version = "1.0.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c54b25569025b7fc9651de43004ae593a75ad88543b17178aa5e1b9c4f15f56f"
+checksum = "dd96a1e8ed2596c337f8eae5f24924ec83f5ad5ab21ea8e455d3566c69fbcaf7"
 dependencies = [
  "unicode-ident",
 ]
@@ -4428,9 +4408,9 @@ checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quote"
-version = "1.0.18"
+version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1feb54ed693b93a84e14094943b84b7c4eae204c512b7ccb95ab0c66d278ad1"
+checksum = "3bcdf212e9776fbcb2d23ab029360416bb1706b1aea2d1a5ba002727cbcab804"
 dependencies = [
  "proc-macro2",
 ]
