@@ -74,7 +74,7 @@ model Node {
     @@map("nodes")
 }
 
-// @owned(owner: node, id: id)
+/// @owned(owner: node, id: id)
 model Location {
     local_id Int   @id @default(autoincrement())
     id       Bytes @unique

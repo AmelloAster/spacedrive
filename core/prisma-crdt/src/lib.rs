@@ -4,6 +4,10 @@ pub mod owned;
 pub mod relation;
 pub mod shared;
 
+mod attribute;
+mod datamodel;
+mod prelude;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uhlc::NTP64;

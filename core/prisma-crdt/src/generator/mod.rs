@@ -1,12 +1,8 @@
-mod ast;
-mod attribute_parser;
 mod client;
+mod model;
 
-use prisma_client_rust_sdk::PrismaGenerator;
-use quote::quote;
-
-pub const INTERNAL_MODELS: &'static [&'static str] =
-	&["OwnedOperation", "SharedOperation", "RelationOperation"];
+use super::prelude::*;
+use super::*;
 
 pub struct PrismaCRDTGenerator;
 
@@ -14,8 +10,9 @@ impl PrismaGenerator for PrismaCRDTGenerator {
 	const NAME: &'static str = "Prisma CRDT Generator";
 	const DEFAULT_OUTPUT: &'static str = "./prisma-crdt.rs";
 
-	fn generate(args: prisma_client_rust_sdk::GenerateArgs) -> String {
-		let mut out = String::new();
+	fn generate(args: GenerateArgs) -> String {
+		let datamodel =
+			datamodel::Datamodel::try_from(&args.dml).expect("Failed to construct datamodel");
 
 		let header = quote! {
 			pub async fn new_client(
@@ -34,10 +31,18 @@ impl PrismaGenerator for PrismaCRDTGenerator {
 			pub use _prisma::*;
 		};
 
-		let client = client::generate(&args);
+		let client = client::generate(&datamodel);
+
+		let models = datamodel
+			.models
+			.iter()
+			.map(|model| model::generate(model, &datamodel));
 
 		let output = quote! {
 			#header
+
+			#(#models)*
+
 			#client
 		};
 
