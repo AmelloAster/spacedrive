@@ -12,14 +12,14 @@ use prisma_client_rust::{
 		executor, schema_builder, BuildMode, CoreError, InterpreterError, QueryExecutor,
 		QueryGraphBuilderError, QuerySchema, QueryValue, Selection,
 	},
-	serde_json, transform_equals, BatchResult, Direction, ManyArgs, SerializedWhere,
-	SerializedWhereValue, UniqueArgs,
+	serde_json, BatchResult, Direction, ManyArgs, SerializedWhere, SerializedWhereValue,
+	UniqueArgs,
 };
 pub use prisma_client_rust::{queries::Error as QueryError, NewClientError};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
-static DATAMODEL_STR : & 'static str = "datasource db {\n    provider = \"sqlite\"\n    url      = \"file:dev.db\"\n}\n\ngenerator client {\n    provider = \"cargo prisma\"\n    output   = \"../src/prisma.rs\"\n}\n\ngenerator crdt {\n    provider = \"cargo prisma-crdt\"\n    output   = \"../src/_prisma-crdt.rs\"\n}\n\n/// @local\nmodel OwnedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    data      Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"shared_operations\")\n}\n\n/// @local\nmodel SharedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    record_id Bytes\n\n    // the type of operation - c, u{field name}, d\n    kind  String\n    model String\n    data  Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"relation_operation\")\n}\n\n/// @local\nmodel RelationOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n\n    relation       String\n    relation_item  Bytes\n    relation_group Bytes\n\n    kind String\n    data Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n}\n\n/// @local(id: id)\nmodel Node {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    locations Location[]\n\n    owned_operations    OwnedOperation[]\n    shared_operations   SharedOperation[]\n    relation_operations RelationOperation[]\n\n    @@map(\"nodes\")\n}\n\n// @owned(owner: node, id: id)\nmodel Location {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id]) // @node\n\n    name String\n\n    file_paths FilePath[]\n\n    @@map(\"locations\")\n}\n\n/// @owned(owner: location)\nmodel FilePath {\n    id Int\n\n    location_id Int\n    location    Location @relation(fields: [location_id], references: [local_id])\n\n    parent_id Int?\n    parent    FilePath? @relation(\"directory_file_paths\", fields: [location_id, parent_id], references: [location_id, id])\n\n    file_id Int?\n    File    File? @relation(fields: [file_id], references: [local_id])\n\n    name String\n\n    children FilePath[] @relation(\"directory_file_paths\")\n\n    @@id([location_id, id])\n    @@map(\"file_paths\")\n}\n\n/// A unique record that can represent multiple physical copies of a file.\n/// Existence is implied based on an equivalent file path existing, and could be\n/// created multiple times.\n\n/// @shared(id: cas_id,create: Atomic)\nmodel File {\n    local_id Int   @id @default(autoincrement())\n    cas_id   Bytes @unique\n\n    size_in_bytes Int @default(0)\n\n    file_paths FilePath[]\n    TagOnFile  TagOnFile[]\n\n    @@map(\"files\")\n}\n\n/// @shared(id: id, create: Unique)\nmodel Tag {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    TagOnFile TagOnFile[]\n    @@map(\"tags\")\n}\n\n/// @relation(item: file, group: tag)\nmodel TagOnFile {\n    tag_id Int\n    tag    Tag @relation(fields: [tag_id], references: [local_id], onDelete: Cascade)\n\n    file_id Int\n    file    File @relation(fields: [file_id], references: [local_id], onDelete: Cascade)\n\n    @@id([tag_id, file_id])\n    @@map(\"tags_on_files\")\n}\n" ;
+static DATAMODEL_STR : & 'static str = "datasource db {\n    provider = \"sqlite\"\n    url      = \"file:dev.db\"\n}\n\ngenerator client {\n    provider = \"cargo prisma\"\n    output   = \"../src/prisma.rs\"\n}\n\ngenerator crdt {\n    provider = \"cargo prisma-crdt\"\n    output   = \"../src/_prisma-crdt.rs\"\n}\n\n/// @local\nmodel OwnedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    data      Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"shared_operations\")\n}\n\n/// @local\nmodel SharedOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n    record_id Bytes\n\n    // the type of operation - c, u{field name}, d\n    kind  String\n    model String\n    data  Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n\n    @@map(\"relation_operation\")\n}\n\n/// @local\nmodel RelationOperation {\n    id        Int   @id @default(autoincrement())\n    timestamp Bytes\n\n    relation       String\n    relation_item  Bytes\n    relation_group Bytes\n\n    kind String\n    data Bytes\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id])\n}\n\n/// @local(id: id)\nmodel Node {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    locations Location[]\n\n    owned_operations    OwnedOperation[]\n    shared_operations   SharedOperation[]\n    relation_operations RelationOperation[]\n\n    @@map(\"nodes\")\n}\n\n/// @owned(owner: node, id: id)\nmodel Location {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    node_id Int\n    node    Node @relation(fields: [node_id], references: [local_id]) // @node\n\n    name String\n\n    file_paths FilePath[]\n\n    @@map(\"locations\")\n}\n\n/// @owned(owner: location)\nmodel FilePath {\n    id Int\n\n    location_id Int\n    location    Location @relation(fields: [location_id], references: [local_id])\n\n    parent_id Int?\n    parent    FilePath? @relation(\"directory_file_paths\", fields: [location_id, parent_id], references: [location_id, id])\n\n    file_id Int?\n    File    File? @relation(fields: [file_id], references: [local_id])\n\n    name String\n\n    children FilePath[] @relation(\"directory_file_paths\")\n\n    @@id([location_id, id])\n    @@map(\"file_paths\")\n}\n\n/// A unique record that can represent multiple physical copies of a file.\n/// Existence is implied based on an equivalent file path existing, and could be\n/// created multiple times.\n\n/// @shared(id: cas_id, create: Atomic)\nmodel File {\n    local_id Int   @id @default(autoincrement())\n    cas_id   Bytes @unique\n\n    size_in_bytes Int @default(0)\n\n    file_paths FilePath[]\n    TagOnFile  TagOnFile[]\n\n    @@map(\"files\")\n}\n\n/// @shared(id: id, create: Unique)\nmodel Tag {\n    local_id Int   @id @default(autoincrement())\n    id       Bytes @unique\n\n    name String\n\n    TagOnFile TagOnFile[]\n    @@map(\"tags\")\n}\n\n/// @relation(item: file, group: tag)\nmodel TagOnFile {\n    tag_id Int\n    tag    Tag @relation(fields: [tag_id], references: [local_id], onDelete: Cascade)\n\n    file_id Int\n    file    File @relation(fields: [file_id], references: [local_id], onDelete: Cascade)\n\n    @@id([tag_id, file_id])\n    @@map(\"tags_on_files\")\n}\n" ;
 static DATABASE_STR: &'static str = "sqlite";
 pub async fn new_client() -> Result<_prisma::PrismaClient, NewClientError> {
 	let config = parse_configuration(DATAMODEL_STR)?.subject;
@@ -404,9 +404,14 @@ pub mod owned_operation {
 					"node".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
-							vec![Into::<super::node::WhereParam>::into(where_param)].into_iter(),
-						)),
+						PrismaValue::Object(
+							vec![where_param]
+								.into_iter()
+								.map(Into::<super::node::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -486,42 +491,47 @@ pub mod owned_operation {
 	impl Into<SerializedWhere> for WhereParam {
 		fn into(self) -> SerializedWhere {
 			match self {
-				Self::Not(value) => (
-					"NOT".to_string(),
-					SerializedWhereValue::List(
+				Self::Not(value) => SerializedWhere::new(
+					"NOT",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::Or(value) => (
-					"OR".to_string(),
+				Self::Or(value) => SerializedWhere::new(
+					"OR",
 					SerializedWhereValue::List(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
+							.map(|v| vec![v])
+							.map(PrismaValue::Object)
 							.collect(),
 					),
 				),
-				Self::And(value) => (
-					"AND".to_string(),
-					SerializedWhereValue::List(
+				Self::And(value) => SerializedWhere::new(
+					"AND",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::IdEquals(value) => (
-					"id".to_string(),
+				Self::IdEquals(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdInVec(value) => (
-					"id".to_string(),
+				Self::IdInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -532,8 +542,8 @@ pub mod owned_operation {
 						),
 					)]),
 				),
-				Self::IdNotInVec(value) => (
-					"id".to_string(),
+				Self::IdNotInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -544,50 +554,50 @@ pub mod owned_operation {
 						),
 					)]),
 				),
-				Self::IdLt(value) => (
-					"id".to_string(),
+				Self::IdLt(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdLte(value) => (
-					"id".to_string(),
+				Self::IdLte(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdGt(value) => (
-					"id".to_string(),
+				Self::IdGt(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdGte(value) => (
-					"id".to_string(),
+				Self::IdGte(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdNot(value) => (
-					"id".to_string(),
+				Self::IdNot(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::TimestampEquals(value) => (
-					"timestamp".to_string(),
+				Self::TimestampEquals(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::TimestampInVec(value) => (
-					"timestamp".to_string(),
+				Self::TimestampInVec(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -595,8 +605,8 @@ pub mod owned_operation {
 						),
 					)]),
 				),
-				Self::TimestampNotInVec(value) => (
-					"timestamp".to_string(),
+				Self::TimestampNotInVec(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -604,22 +614,22 @@ pub mod owned_operation {
 						),
 					)]),
 				),
-				Self::TimestampNot(value) => (
-					"timestamp".to_string(),
+				Self::TimestampNot(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::DataEquals(value) => (
-					"data".to_string(),
+				Self::DataEquals(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::DataInVec(value) => (
-					"data".to_string(),
+				Self::DataInVec(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -627,8 +637,8 @@ pub mod owned_operation {
 						),
 					)]),
 				),
-				Self::DataNotInVec(value) => (
-					"data".to_string(),
+				Self::DataNotInVec(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -636,22 +646,22 @@ pub mod owned_operation {
 						),
 					)]),
 				),
-				Self::DataNot(value) => (
-					"data".to_string(),
+				Self::DataNot(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::NodeIdEquals(value) => (
-					"node_id".to_string(),
+				Self::NodeIdEquals(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdInVec(value) => (
-					"node_id".to_string(),
+				Self::NodeIdInVec(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -662,8 +672,8 @@ pub mod owned_operation {
 						),
 					)]),
 				),
-				Self::NodeIdNotInVec(value) => (
-					"node_id".to_string(),
+				Self::NodeIdNotInVec(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -674,57 +684,65 @@ pub mod owned_operation {
 						),
 					)]),
 				),
-				Self::NodeIdLt(value) => (
-					"node_id".to_string(),
+				Self::NodeIdLt(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdLte(value) => (
-					"node_id".to_string(),
+				Self::NodeIdLte(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdGt(value) => (
-					"node_id".to_string(),
+				Self::NodeIdGt(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdGte(value) => (
-					"node_id".to_string(),
+				Self::NodeIdGte(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdNot(value) => (
-					"node_id".to_string(),
+				Self::NodeIdNot(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIs(value) => (
-					"node".to_string(),
+				Self::NodeIs(where_params) => SerializedWhere::new(
+					"node",
 					SerializedWhereValue::Object(vec![(
 						"is".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::NodeIsNot(value) => (
-					"node".to_string(),
+				Self::NodeIsNot(where_params) => SerializedWhere::new(
+					"node",
 					SerializedWhereValue::Object(vec![(
 						"isNot".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -1370,9 +1388,14 @@ pub mod shared_operation {
 					"node".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
-							vec![Into::<super::node::WhereParam>::into(where_param)].into_iter(),
-						)),
+						PrismaValue::Object(
+							vec![where_param]
+								.into_iter()
+								.map(Into::<super::node::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -1493,42 +1516,47 @@ pub mod shared_operation {
 	impl Into<SerializedWhere> for WhereParam {
 		fn into(self) -> SerializedWhere {
 			match self {
-				Self::Not(value) => (
-					"NOT".to_string(),
-					SerializedWhereValue::List(
+				Self::Not(value) => SerializedWhere::new(
+					"NOT",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::Or(value) => (
-					"OR".to_string(),
+				Self::Or(value) => SerializedWhere::new(
+					"OR",
 					SerializedWhereValue::List(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
+							.map(|v| vec![v])
+							.map(PrismaValue::Object)
 							.collect(),
 					),
 				),
-				Self::And(value) => (
-					"AND".to_string(),
-					SerializedWhereValue::List(
+				Self::And(value) => SerializedWhere::new(
+					"AND",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::IdEquals(value) => (
-					"id".to_string(),
+				Self::IdEquals(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdInVec(value) => (
-					"id".to_string(),
+				Self::IdInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -1539,8 +1567,8 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::IdNotInVec(value) => (
-					"id".to_string(),
+				Self::IdNotInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -1551,50 +1579,50 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::IdLt(value) => (
-					"id".to_string(),
+				Self::IdLt(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdLte(value) => (
-					"id".to_string(),
+				Self::IdLte(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdGt(value) => (
-					"id".to_string(),
+				Self::IdGt(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdGte(value) => (
-					"id".to_string(),
+				Self::IdGte(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdNot(value) => (
-					"id".to_string(),
+				Self::IdNot(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::TimestampEquals(value) => (
-					"timestamp".to_string(),
+				Self::TimestampEquals(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::TimestampInVec(value) => (
-					"timestamp".to_string(),
+				Self::TimestampInVec(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -1602,8 +1630,8 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::TimestampNotInVec(value) => (
-					"timestamp".to_string(),
+				Self::TimestampNotInVec(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -1611,22 +1639,22 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::TimestampNot(value) => (
-					"timestamp".to_string(),
+				Self::TimestampNot(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::RecordIdEquals(value) => (
-					"record_id".to_string(),
+				Self::RecordIdEquals(value) => SerializedWhere::new(
+					"record_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::RecordIdInVec(value) => (
-					"record_id".to_string(),
+				Self::RecordIdInVec(value) => SerializedWhere::new(
+					"record_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -1634,8 +1662,8 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::RecordIdNotInVec(value) => (
-					"record_id".to_string(),
+				Self::RecordIdNotInVec(value) => SerializedWhere::new(
+					"record_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -1643,22 +1671,22 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::RecordIdNot(value) => (
-					"record_id".to_string(),
+				Self::RecordIdNot(value) => SerializedWhere::new(
+					"record_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::KindEquals(value) => (
-					"kind".to_string(),
+				Self::KindEquals(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindInVec(value) => (
-					"kind".to_string(),
+				Self::KindInVec(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -1666,8 +1694,8 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::KindNotInVec(value) => (
-					"kind".to_string(),
+				Self::KindNotInVec(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -1675,71 +1703,71 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::KindLt(value) => (
-					"kind".to_string(),
+				Self::KindLt(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindLte(value) => (
-					"kind".to_string(),
+				Self::KindLte(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindGt(value) => (
-					"kind".to_string(),
+				Self::KindGt(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindGte(value) => (
-					"kind".to_string(),
+				Self::KindGte(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindContains(value) => (
-					"kind".to_string(),
+				Self::KindContains(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"contains".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindStartsWith(value) => (
-					"kind".to_string(),
+				Self::KindStartsWith(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"startsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindEndsWith(value) => (
-					"kind".to_string(),
+				Self::KindEndsWith(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"endsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindNot(value) => (
-					"kind".to_string(),
+				Self::KindNot(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ModelEquals(value) => (
-					"model".to_string(),
+				Self::ModelEquals(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ModelInVec(value) => (
-					"model".to_string(),
+				Self::ModelInVec(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -1747,8 +1775,8 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::ModelNotInVec(value) => (
-					"model".to_string(),
+				Self::ModelNotInVec(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -1756,71 +1784,71 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::ModelLt(value) => (
-					"model".to_string(),
+				Self::ModelLt(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ModelLte(value) => (
-					"model".to_string(),
+				Self::ModelLte(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ModelGt(value) => (
-					"model".to_string(),
+				Self::ModelGt(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ModelGte(value) => (
-					"model".to_string(),
+				Self::ModelGte(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ModelContains(value) => (
-					"model".to_string(),
+				Self::ModelContains(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"contains".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ModelStartsWith(value) => (
-					"model".to_string(),
+				Self::ModelStartsWith(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"startsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ModelEndsWith(value) => (
-					"model".to_string(),
+				Self::ModelEndsWith(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"endsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ModelNot(value) => (
-					"model".to_string(),
+				Self::ModelNot(value) => SerializedWhere::new(
+					"model",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::DataEquals(value) => (
-					"data".to_string(),
+				Self::DataEquals(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::DataInVec(value) => (
-					"data".to_string(),
+				Self::DataInVec(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -1828,8 +1856,8 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::DataNotInVec(value) => (
-					"data".to_string(),
+				Self::DataNotInVec(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -1837,22 +1865,22 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::DataNot(value) => (
-					"data".to_string(),
+				Self::DataNot(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::NodeIdEquals(value) => (
-					"node_id".to_string(),
+				Self::NodeIdEquals(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdInVec(value) => (
-					"node_id".to_string(),
+				Self::NodeIdInVec(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -1863,8 +1891,8 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::NodeIdNotInVec(value) => (
-					"node_id".to_string(),
+				Self::NodeIdNotInVec(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -1875,57 +1903,65 @@ pub mod shared_operation {
 						),
 					)]),
 				),
-				Self::NodeIdLt(value) => (
-					"node_id".to_string(),
+				Self::NodeIdLt(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdLte(value) => (
-					"node_id".to_string(),
+				Self::NodeIdLte(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdGt(value) => (
-					"node_id".to_string(),
+				Self::NodeIdGt(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdGte(value) => (
-					"node_id".to_string(),
+				Self::NodeIdGte(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdNot(value) => (
-					"node_id".to_string(),
+				Self::NodeIdNot(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIs(value) => (
-					"node".to_string(),
+				Self::NodeIs(where_params) => SerializedWhere::new(
+					"node",
 					SerializedWhereValue::Object(vec![(
 						"is".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::NodeIsNot(value) => (
-					"node".to_string(),
+				Self::NodeIsNot(where_params) => SerializedWhere::new(
+					"node",
 					SerializedWhereValue::Object(vec![(
 						"isNot".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -2621,9 +2657,14 @@ pub mod relation_operation {
 					"node".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
-							vec![Into::<super::node::WhereParam>::into(where_param)].into_iter(),
-						)),
+						PrismaValue::Object(
+							vec![where_param]
+								.into_iter()
+								.map(Into::<super::node::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -2753,42 +2794,47 @@ pub mod relation_operation {
 	impl Into<SerializedWhere> for WhereParam {
 		fn into(self) -> SerializedWhere {
 			match self {
-				Self::Not(value) => (
-					"NOT".to_string(),
-					SerializedWhereValue::List(
+				Self::Not(value) => SerializedWhere::new(
+					"NOT",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::Or(value) => (
-					"OR".to_string(),
+				Self::Or(value) => SerializedWhere::new(
+					"OR",
 					SerializedWhereValue::List(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
+							.map(|v| vec![v])
+							.map(PrismaValue::Object)
 							.collect(),
 					),
 				),
-				Self::And(value) => (
-					"AND".to_string(),
-					SerializedWhereValue::List(
+				Self::And(value) => SerializedWhere::new(
+					"AND",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::IdEquals(value) => (
-					"id".to_string(),
+				Self::IdEquals(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdInVec(value) => (
-					"id".to_string(),
+				Self::IdInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -2799,8 +2845,8 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::IdNotInVec(value) => (
-					"id".to_string(),
+				Self::IdNotInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -2811,50 +2857,50 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::IdLt(value) => (
-					"id".to_string(),
+				Self::IdLt(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdLte(value) => (
-					"id".to_string(),
+				Self::IdLte(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdGt(value) => (
-					"id".to_string(),
+				Self::IdGt(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdGte(value) => (
-					"id".to_string(),
+				Self::IdGte(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdNot(value) => (
-					"id".to_string(),
+				Self::IdNot(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::TimestampEquals(value) => (
-					"timestamp".to_string(),
+				Self::TimestampEquals(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::TimestampInVec(value) => (
-					"timestamp".to_string(),
+				Self::TimestampInVec(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -2862,8 +2908,8 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::TimestampNotInVec(value) => (
-					"timestamp".to_string(),
+				Self::TimestampNotInVec(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -2871,22 +2917,22 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::TimestampNot(value) => (
-					"timestamp".to_string(),
+				Self::TimestampNot(value) => SerializedWhere::new(
+					"timestamp",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::RelationEquals(value) => (
-					"relation".to_string(),
+				Self::RelationEquals(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::RelationInVec(value) => (
-					"relation".to_string(),
+				Self::RelationInVec(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -2894,8 +2940,8 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::RelationNotInVec(value) => (
-					"relation".to_string(),
+				Self::RelationNotInVec(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -2903,71 +2949,71 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::RelationLt(value) => (
-					"relation".to_string(),
+				Self::RelationLt(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::RelationLte(value) => (
-					"relation".to_string(),
+				Self::RelationLte(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::RelationGt(value) => (
-					"relation".to_string(),
+				Self::RelationGt(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::RelationGte(value) => (
-					"relation".to_string(),
+				Self::RelationGte(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::RelationContains(value) => (
-					"relation".to_string(),
+				Self::RelationContains(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"contains".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::RelationStartsWith(value) => (
-					"relation".to_string(),
+				Self::RelationStartsWith(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"startsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::RelationEndsWith(value) => (
-					"relation".to_string(),
+				Self::RelationEndsWith(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"endsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::RelationNot(value) => (
-					"relation".to_string(),
+				Self::RelationNot(value) => SerializedWhere::new(
+					"relation",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::RelationItemEquals(value) => (
-					"relation_item".to_string(),
+				Self::RelationItemEquals(value) => SerializedWhere::new(
+					"relation_item",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::RelationItemInVec(value) => (
-					"relation_item".to_string(),
+				Self::RelationItemInVec(value) => SerializedWhere::new(
+					"relation_item",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -2975,8 +3021,8 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::RelationItemNotInVec(value) => (
-					"relation_item".to_string(),
+				Self::RelationItemNotInVec(value) => SerializedWhere::new(
+					"relation_item",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -2984,22 +3030,22 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::RelationItemNot(value) => (
-					"relation_item".to_string(),
+				Self::RelationItemNot(value) => SerializedWhere::new(
+					"relation_item",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::RelationGroupEquals(value) => (
-					"relation_group".to_string(),
+				Self::RelationGroupEquals(value) => SerializedWhere::new(
+					"relation_group",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::RelationGroupInVec(value) => (
-					"relation_group".to_string(),
+				Self::RelationGroupInVec(value) => SerializedWhere::new(
+					"relation_group",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -3007,8 +3053,8 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::RelationGroupNotInVec(value) => (
-					"relation_group".to_string(),
+				Self::RelationGroupNotInVec(value) => SerializedWhere::new(
+					"relation_group",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -3016,22 +3062,22 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::RelationGroupNot(value) => (
-					"relation_group".to_string(),
+				Self::RelationGroupNot(value) => SerializedWhere::new(
+					"relation_group",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::KindEquals(value) => (
-					"kind".to_string(),
+				Self::KindEquals(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindInVec(value) => (
-					"kind".to_string(),
+				Self::KindInVec(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -3039,8 +3085,8 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::KindNotInVec(value) => (
-					"kind".to_string(),
+				Self::KindNotInVec(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -3048,71 +3094,71 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::KindLt(value) => (
-					"kind".to_string(),
+				Self::KindLt(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindLte(value) => (
-					"kind".to_string(),
+				Self::KindLte(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindGt(value) => (
-					"kind".to_string(),
+				Self::KindGt(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindGte(value) => (
-					"kind".to_string(),
+				Self::KindGte(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindContains(value) => (
-					"kind".to_string(),
+				Self::KindContains(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"contains".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindStartsWith(value) => (
-					"kind".to_string(),
+				Self::KindStartsWith(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"startsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindEndsWith(value) => (
-					"kind".to_string(),
+				Self::KindEndsWith(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"endsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::KindNot(value) => (
-					"kind".to_string(),
+				Self::KindNot(value) => SerializedWhere::new(
+					"kind",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::DataEquals(value) => (
-					"data".to_string(),
+				Self::DataEquals(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::DataInVec(value) => (
-					"data".to_string(),
+				Self::DataInVec(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -3120,8 +3166,8 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::DataNotInVec(value) => (
-					"data".to_string(),
+				Self::DataNotInVec(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -3129,22 +3175,22 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::DataNot(value) => (
-					"data".to_string(),
+				Self::DataNot(value) => SerializedWhere::new(
+					"data",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::NodeIdEquals(value) => (
-					"node_id".to_string(),
+				Self::NodeIdEquals(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdInVec(value) => (
-					"node_id".to_string(),
+				Self::NodeIdInVec(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -3155,8 +3201,8 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::NodeIdNotInVec(value) => (
-					"node_id".to_string(),
+				Self::NodeIdNotInVec(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -3167,57 +3213,65 @@ pub mod relation_operation {
 						),
 					)]),
 				),
-				Self::NodeIdLt(value) => (
-					"node_id".to_string(),
+				Self::NodeIdLt(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdLte(value) => (
-					"node_id".to_string(),
+				Self::NodeIdLte(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdGt(value) => (
-					"node_id".to_string(),
+				Self::NodeIdGt(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdGte(value) => (
-					"node_id".to_string(),
+				Self::NodeIdGte(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdNot(value) => (
-					"node_id".to_string(),
+				Self::NodeIdNot(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIs(value) => (
-					"node".to_string(),
+				Self::NodeIs(where_params) => SerializedWhere::new(
+					"node",
 					SerializedWhereValue::Object(vec![(
 						"is".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::NodeIsNot(value) => (
-					"node".to_string(),
+				Self::NodeIsNot(where_params) => SerializedWhere::new(
+					"node",
 					SerializedWhereValue::Object(vec![(
 						"isNot".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -3911,11 +3965,14 @@ pub mod node {
 					"locations".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
+						PrismaValue::Object(
 							where_params
 								.into_iter()
-								.map(Into::<super::location::WhereParam>::into),
-						)),
+								.map(Into::<super::location::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkLocations(where_params) => (
@@ -3923,13 +3980,12 @@ pub mod node {
 					PrismaValue::Object(vec![(
 						"disconnect".to_string(),
 						PrismaValue::Object(
-							transform_equals(
-								where_params
-									.into_iter()
-									.map(Into::<super::location::WhereParam>::into),
-							)
-							.into_iter()
-							.collect(),
+							where_params
+								.into_iter()
+								.map(Into::<super::location::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
 						),
 					)]),
 				),
@@ -3937,11 +3993,14 @@ pub mod node {
 					"owned_operations".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
+						PrismaValue::Object(
 							where_params
 								.into_iter()
-								.map(Into::<super::owned_operation::WhereParam>::into),
-						)),
+								.map(Into::<super::owned_operation::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkOwnedOperations(where_params) => (
@@ -3949,13 +4008,12 @@ pub mod node {
 					PrismaValue::Object(vec![(
 						"disconnect".to_string(),
 						PrismaValue::Object(
-							transform_equals(
-								where_params
-									.into_iter()
-									.map(Into::<super::owned_operation::WhereParam>::into),
-							)
-							.into_iter()
-							.collect(),
+							where_params
+								.into_iter()
+								.map(Into::<super::owned_operation::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
 						),
 					)]),
 				),
@@ -3963,11 +4021,14 @@ pub mod node {
 					"shared_operations".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
+						PrismaValue::Object(
 							where_params
 								.into_iter()
-								.map(Into::<super::shared_operation::WhereParam>::into),
-						)),
+								.map(Into::<super::shared_operation::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkSharedOperations(where_params) => (
@@ -3975,13 +4036,12 @@ pub mod node {
 					PrismaValue::Object(vec![(
 						"disconnect".to_string(),
 						PrismaValue::Object(
-							transform_equals(
-								where_params
-									.into_iter()
-									.map(Into::<super::shared_operation::WhereParam>::into),
-							)
-							.into_iter()
-							.collect(),
+							where_params
+								.into_iter()
+								.map(Into::<super::shared_operation::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
 						),
 					)]),
 				),
@@ -3989,11 +4049,14 @@ pub mod node {
 					"relation_operations".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
+						PrismaValue::Object(
 							where_params
 								.into_iter()
-								.map(Into::<super::relation_operation::WhereParam>::into),
-						)),
+								.map(Into::<super::relation_operation::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkRelationOperations(where_params) => (
@@ -4001,13 +4064,12 @@ pub mod node {
 					PrismaValue::Object(vec![(
 						"disconnect".to_string(),
 						PrismaValue::Object(
-							transform_equals(
-								where_params
-									.into_iter()
-									.map(Into::<super::relation_operation::WhereParam>::into),
-							)
-							.into_iter()
-							.collect(),
+							where_params
+								.into_iter()
+								.map(Into::<super::relation_operation::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
 						),
 					)]),
 				),
@@ -4094,42 +4156,47 @@ pub mod node {
 	impl Into<SerializedWhere> for WhereParam {
 		fn into(self) -> SerializedWhere {
 			match self {
-				Self::Not(value) => (
-					"NOT".to_string(),
-					SerializedWhereValue::List(
+				Self::Not(value) => SerializedWhere::new(
+					"NOT",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::Or(value) => (
-					"OR".to_string(),
+				Self::Or(value) => SerializedWhere::new(
+					"OR",
 					SerializedWhereValue::List(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
+							.map(|v| vec![v])
+							.map(PrismaValue::Object)
 							.collect(),
 					),
 				),
-				Self::And(value) => (
-					"AND".to_string(),
-					SerializedWhereValue::List(
+				Self::And(value) => SerializedWhere::new(
+					"AND",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::LocalIdEquals(value) => (
-					"local_id".to_string(),
+				Self::LocalIdEquals(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdInVec(value) => (
-					"local_id".to_string(),
+				Self::LocalIdInVec(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -4140,8 +4207,8 @@ pub mod node {
 						),
 					)]),
 				),
-				Self::LocalIdNotInVec(value) => (
-					"local_id".to_string(),
+				Self::LocalIdNotInVec(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -4152,50 +4219,50 @@ pub mod node {
 						),
 					)]),
 				),
-				Self::LocalIdLt(value) => (
-					"local_id".to_string(),
+				Self::LocalIdLt(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdLte(value) => (
-					"local_id".to_string(),
+				Self::LocalIdLte(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdGt(value) => (
-					"local_id".to_string(),
+				Self::LocalIdGt(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdGte(value) => (
-					"local_id".to_string(),
+				Self::LocalIdGte(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdNot(value) => (
-					"local_id".to_string(),
+				Self::LocalIdNot(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdEquals(value) => (
-					"id".to_string(),
+				Self::IdEquals(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::IdInVec(value) => (
-					"id".to_string(),
+				Self::IdInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -4203,8 +4270,8 @@ pub mod node {
 						),
 					)]),
 				),
-				Self::IdNotInVec(value) => (
-					"id".to_string(),
+				Self::IdNotInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -4212,22 +4279,22 @@ pub mod node {
 						),
 					)]),
 				),
-				Self::IdNot(value) => (
-					"id".to_string(),
+				Self::IdNot(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::NameEquals(value) => (
-					"name".to_string(),
+				Self::NameEquals(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameInVec(value) => (
-					"name".to_string(),
+				Self::NameInVec(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -4235,8 +4302,8 @@ pub mod node {
 						),
 					)]),
 				),
-				Self::NameNotInVec(value) => (
-					"name".to_string(),
+				Self::NameNotInVec(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -4244,168 +4311,216 @@ pub mod node {
 						),
 					)]),
 				),
-				Self::NameLt(value) => (
-					"name".to_string(),
+				Self::NameLt(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameLte(value) => (
-					"name".to_string(),
+				Self::NameLte(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameGt(value) => (
-					"name".to_string(),
+				Self::NameGt(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameGte(value) => (
-					"name".to_string(),
+				Self::NameGte(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameContains(value) => (
-					"name".to_string(),
+				Self::NameContains(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"contains".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameStartsWith(value) => (
-					"name".to_string(),
+				Self::NameStartsWith(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"startsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameEndsWith(value) => (
-					"name".to_string(),
+				Self::NameEndsWith(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"endsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameNot(value) => (
-					"name".to_string(),
+				Self::NameNot(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::LocationsSome(value) => (
-					"locations".to_string(),
+				Self::LocationsSome(where_params) => SerializedWhere::new(
+					"locations",
 					SerializedWhereValue::Object(vec![(
 						"some".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::LocationsEvery(value) => (
-					"locations".to_string(),
+				Self::LocationsEvery(where_params) => SerializedWhere::new(
+					"locations",
 					SerializedWhereValue::Object(vec![(
 						"every".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::LocationsNone(value) => (
-					"locations".to_string(),
+				Self::LocationsNone(where_params) => SerializedWhere::new(
+					"locations",
 					SerializedWhereValue::Object(vec![(
 						"none".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::OwnedOperationsSome(value) => (
-					"owned_operations".to_string(),
+				Self::OwnedOperationsSome(where_params) => SerializedWhere::new(
+					"owned_operations",
 					SerializedWhereValue::Object(vec![(
 						"some".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::OwnedOperationsEvery(value) => (
-					"owned_operations".to_string(),
+				Self::OwnedOperationsEvery(where_params) => SerializedWhere::new(
+					"owned_operations",
 					SerializedWhereValue::Object(vec![(
 						"every".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::OwnedOperationsNone(value) => (
-					"owned_operations".to_string(),
+				Self::OwnedOperationsNone(where_params) => SerializedWhere::new(
+					"owned_operations",
 					SerializedWhereValue::Object(vec![(
 						"none".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::SharedOperationsSome(value) => (
-					"shared_operations".to_string(),
+				Self::SharedOperationsSome(where_params) => SerializedWhere::new(
+					"shared_operations",
 					SerializedWhereValue::Object(vec![(
 						"some".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::SharedOperationsEvery(value) => (
-					"shared_operations".to_string(),
+				Self::SharedOperationsEvery(where_params) => SerializedWhere::new(
+					"shared_operations",
 					SerializedWhereValue::Object(vec![(
 						"every".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::SharedOperationsNone(value) => (
-					"shared_operations".to_string(),
+				Self::SharedOperationsNone(where_params) => SerializedWhere::new(
+					"shared_operations",
 					SerializedWhereValue::Object(vec![(
 						"none".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::RelationOperationsSome(value) => (
-					"relation_operations".to_string(),
+				Self::RelationOperationsSome(where_params) => SerializedWhere::new(
+					"relation_operations",
 					SerializedWhereValue::Object(vec![(
 						"some".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::RelationOperationsEvery(value) => (
-					"relation_operations".to_string(),
+				Self::RelationOperationsEvery(where_params) => SerializedWhere::new(
+					"relation_operations",
 					SerializedWhereValue::Object(vec![(
 						"every".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::RelationOperationsNone(value) => (
-					"relation_operations".to_string(),
+				Self::RelationOperationsNone(where_params) => SerializedWhere::new(
+					"relation_operations",
 					SerializedWhereValue::Object(vec![(
 						"none".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -4988,9 +5103,14 @@ pub mod location {
 					"node".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
-							vec![Into::<super::node::WhereParam>::into(where_param)].into_iter(),
-						)),
+						PrismaValue::Object(
+							vec![where_param]
+								.into_iter()
+								.map(Into::<super::node::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::SetName(value) => ("name".to_string(), PrismaValue::String(value)),
@@ -4998,11 +5118,14 @@ pub mod location {
 					"file_paths".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
+						PrismaValue::Object(
 							where_params
 								.into_iter()
-								.map(Into::<super::file_path::WhereParam>::into),
-						)),
+								.map(Into::<super::file_path::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkFilePaths(where_params) => (
@@ -5010,13 +5133,12 @@ pub mod location {
 					PrismaValue::Object(vec![(
 						"disconnect".to_string(),
 						PrismaValue::Object(
-							transform_equals(
-								where_params
-									.into_iter()
-									.map(Into::<super::file_path::WhereParam>::into),
-							)
-							.into_iter()
-							.collect(),
+							where_params
+								.into_iter()
+								.map(Into::<super::file_path::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
 						),
 					)]),
 				),
@@ -5109,42 +5231,47 @@ pub mod location {
 	impl Into<SerializedWhere> for WhereParam {
 		fn into(self) -> SerializedWhere {
 			match self {
-				Self::Not(value) => (
-					"NOT".to_string(),
-					SerializedWhereValue::List(
+				Self::Not(value) => SerializedWhere::new(
+					"NOT",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::Or(value) => (
-					"OR".to_string(),
+				Self::Or(value) => SerializedWhere::new(
+					"OR",
 					SerializedWhereValue::List(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
+							.map(|v| vec![v])
+							.map(PrismaValue::Object)
 							.collect(),
 					),
 				),
-				Self::And(value) => (
-					"AND".to_string(),
-					SerializedWhereValue::List(
+				Self::And(value) => SerializedWhere::new(
+					"AND",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::LocalIdEquals(value) => (
-					"local_id".to_string(),
+				Self::LocalIdEquals(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdInVec(value) => (
-					"local_id".to_string(),
+				Self::LocalIdInVec(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -5155,8 +5282,8 @@ pub mod location {
 						),
 					)]),
 				),
-				Self::LocalIdNotInVec(value) => (
-					"local_id".to_string(),
+				Self::LocalIdNotInVec(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -5167,50 +5294,50 @@ pub mod location {
 						),
 					)]),
 				),
-				Self::LocalIdLt(value) => (
-					"local_id".to_string(),
+				Self::LocalIdLt(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdLte(value) => (
-					"local_id".to_string(),
+				Self::LocalIdLte(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdGt(value) => (
-					"local_id".to_string(),
+				Self::LocalIdGt(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdGte(value) => (
-					"local_id".to_string(),
+				Self::LocalIdGte(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdNot(value) => (
-					"local_id".to_string(),
+				Self::LocalIdNot(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdEquals(value) => (
-					"id".to_string(),
+				Self::IdEquals(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::IdInVec(value) => (
-					"id".to_string(),
+				Self::IdInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -5218,8 +5345,8 @@ pub mod location {
 						),
 					)]),
 				),
-				Self::IdNotInVec(value) => (
-					"id".to_string(),
+				Self::IdNotInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -5227,22 +5354,22 @@ pub mod location {
 						),
 					)]),
 				),
-				Self::IdNot(value) => (
-					"id".to_string(),
+				Self::IdNot(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::NodeIdEquals(value) => (
-					"node_id".to_string(),
+				Self::NodeIdEquals(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdInVec(value) => (
-					"node_id".to_string(),
+				Self::NodeIdInVec(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -5253,8 +5380,8 @@ pub mod location {
 						),
 					)]),
 				),
-				Self::NodeIdNotInVec(value) => (
-					"node_id".to_string(),
+				Self::NodeIdNotInVec(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -5265,68 +5392,76 @@ pub mod location {
 						),
 					)]),
 				),
-				Self::NodeIdLt(value) => (
-					"node_id".to_string(),
+				Self::NodeIdLt(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdLte(value) => (
-					"node_id".to_string(),
+				Self::NodeIdLte(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdGt(value) => (
-					"node_id".to_string(),
+				Self::NodeIdGt(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdGte(value) => (
-					"node_id".to_string(),
+				Self::NodeIdGte(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIdNot(value) => (
-					"node_id".to_string(),
+				Self::NodeIdNot(value) => SerializedWhere::new(
+					"node_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::NodeIs(value) => (
-					"node".to_string(),
+				Self::NodeIs(where_params) => SerializedWhere::new(
+					"node",
 					SerializedWhereValue::Object(vec![(
 						"is".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::NodeIsNot(value) => (
-					"node".to_string(),
+				Self::NodeIsNot(where_params) => SerializedWhere::new(
+					"node",
 					SerializedWhereValue::Object(vec![(
 						"isNot".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::NameEquals(value) => (
-					"name".to_string(),
+				Self::NameEquals(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameInVec(value) => (
-					"name".to_string(),
+				Self::NameInVec(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -5334,8 +5469,8 @@ pub mod location {
 						),
 					)]),
 				),
-				Self::NameNotInVec(value) => (
-					"name".to_string(),
+				Self::NameNotInVec(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -5343,87 +5478,99 @@ pub mod location {
 						),
 					)]),
 				),
-				Self::NameLt(value) => (
-					"name".to_string(),
+				Self::NameLt(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameLte(value) => (
-					"name".to_string(),
+				Self::NameLte(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameGt(value) => (
-					"name".to_string(),
+				Self::NameGt(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameGte(value) => (
-					"name".to_string(),
+				Self::NameGte(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameContains(value) => (
-					"name".to_string(),
+				Self::NameContains(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"contains".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameStartsWith(value) => (
-					"name".to_string(),
+				Self::NameStartsWith(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"startsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameEndsWith(value) => (
-					"name".to_string(),
+				Self::NameEndsWith(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"endsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameNot(value) => (
-					"name".to_string(),
+				Self::NameNot(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::FilePathsSome(value) => (
-					"file_paths".to_string(),
+				Self::FilePathsSome(where_params) => SerializedWhere::new(
+					"file_paths",
 					SerializedWhereValue::Object(vec![(
 						"some".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::FilePathsEvery(value) => (
-					"file_paths".to_string(),
+				Self::FilePathsEvery(where_params) => SerializedWhere::new(
+					"file_paths",
 					SerializedWhereValue::Object(vec![(
 						"every".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::FilePathsNone(value) => (
-					"file_paths".to_string(),
+				Self::FilePathsNone(where_params) => SerializedWhere::new(
+					"file_paths",
 					SerializedWhereValue::Object(vec![(
 						"none".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -6225,10 +6372,14 @@ pub mod file_path {
 					"location".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
-							vec![Into::<super::location::WhereParam>::into(where_param)]
-								.into_iter(),
-						)),
+						PrismaValue::Object(
+							vec![where_param]
+								.into_iter()
+								.map(Into::<super::location::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::SetParentId(value) => (
@@ -6269,10 +6420,14 @@ pub mod file_path {
 					"parent".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
-							vec![Into::<super::file_path::WhereParam>::into(where_param)]
-								.into_iter(),
-						)),
+						PrismaValue::Object(
+							vec![where_param]
+								.into_iter()
+								.map(Into::<super::file_path::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkParent => (
@@ -6320,9 +6475,14 @@ pub mod file_path {
 					"File".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
-							vec![Into::<super::file::WhereParam>::into(where_param)].into_iter(),
-						)),
+						PrismaValue::Object(
+							vec![where_param]
+								.into_iter()
+								.map(Into::<super::file::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkFile => (
@@ -6337,11 +6497,14 @@ pub mod file_path {
 					"children".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
+						PrismaValue::Object(
 							where_params
 								.into_iter()
-								.map(Into::<super::file_path::WhereParam>::into),
-						)),
+								.map(Into::<super::file_path::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkChildren(where_params) => (
@@ -6349,13 +6512,12 @@ pub mod file_path {
 					PrismaValue::Object(vec![(
 						"disconnect".to_string(),
 						PrismaValue::Object(
-							transform_equals(
-								where_params
-									.into_iter()
-									.map(Into::<super::file_path::WhereParam>::into),
-							)
-							.into_iter()
-							.collect(),
+							where_params
+								.into_iter()
+								.map(Into::<super::file_path::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
 						),
 					)]),
 				),
@@ -6464,35 +6626,40 @@ pub mod file_path {
 	impl Into<SerializedWhere> for WhereParam {
 		fn into(self) -> SerializedWhere {
 			match self {
-				Self::Not(value) => (
-					"NOT".to_string(),
-					SerializedWhereValue::List(
+				Self::Not(value) => SerializedWhere::new(
+					"NOT",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::Or(value) => (
-					"OR".to_string(),
+				Self::Or(value) => SerializedWhere::new(
+					"OR",
 					SerializedWhereValue::List(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
+							.map(|v| vec![v])
+							.map(PrismaValue::Object)
 							.collect(),
 					),
 				),
-				Self::And(value) => (
-					"AND".to_string(),
-					SerializedWhereValue::List(
+				Self::And(value) => SerializedWhere::new(
+					"AND",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::LocationIdIdEquals(location_id, id) => (
-					"location_id_id".to_string(),
+				Self::LocationIdIdEquals(location_id, id) => SerializedWhere::new(
+					"location_id_id",
 					SerializedWhereValue::Object(vec![
 						(
 							"location_id".to_string(),
@@ -6501,15 +6668,15 @@ pub mod file_path {
 						("id".to_string(), PrismaValue::Int(id as i64)),
 					]),
 				),
-				Self::IdEquals(value) => (
-					"id".to_string(),
+				Self::IdEquals(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdInVec(value) => (
-					"id".to_string(),
+				Self::IdInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -6520,8 +6687,8 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::IdNotInVec(value) => (
-					"id".to_string(),
+				Self::IdNotInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -6532,50 +6699,50 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::IdLt(value) => (
-					"id".to_string(),
+				Self::IdLt(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdLte(value) => (
-					"id".to_string(),
+				Self::IdLte(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdGt(value) => (
-					"id".to_string(),
+				Self::IdGt(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdGte(value) => (
-					"id".to_string(),
+				Self::IdGte(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdNot(value) => (
-					"id".to_string(),
+				Self::IdNot(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocationIdEquals(value) => (
-					"location_id".to_string(),
+				Self::LocationIdEquals(value) => SerializedWhere::new(
+					"location_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocationIdInVec(value) => (
-					"location_id".to_string(),
+				Self::LocationIdInVec(value) => SerializedWhere::new(
+					"location_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -6586,8 +6753,8 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::LocationIdNotInVec(value) => (
-					"location_id".to_string(),
+				Self::LocationIdNotInVec(value) => SerializedWhere::new(
+					"location_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -6598,61 +6765,69 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::LocationIdLt(value) => (
-					"location_id".to_string(),
+				Self::LocationIdLt(value) => SerializedWhere::new(
+					"location_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocationIdLte(value) => (
-					"location_id".to_string(),
+				Self::LocationIdLte(value) => SerializedWhere::new(
+					"location_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocationIdGt(value) => (
-					"location_id".to_string(),
+				Self::LocationIdGt(value) => SerializedWhere::new(
+					"location_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocationIdGte(value) => (
-					"location_id".to_string(),
+				Self::LocationIdGte(value) => SerializedWhere::new(
+					"location_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocationIdNot(value) => (
-					"location_id".to_string(),
+				Self::LocationIdNot(value) => SerializedWhere::new(
+					"location_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocationIs(value) => (
-					"location".to_string(),
+				Self::LocationIs(where_params) => SerializedWhere::new(
+					"location",
 					SerializedWhereValue::Object(vec![(
 						"is".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::LocationIsNot(value) => (
-					"location".to_string(),
+				Self::LocationIsNot(where_params) => SerializedWhere::new(
+					"location",
 					SerializedWhereValue::Object(vec![(
 						"isNot".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::ParentIdEquals(value) => (
-					"parent_id".to_string(),
+				Self::ParentIdEquals(value) => SerializedWhere::new(
+					"parent_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						value
@@ -6660,8 +6835,8 @@ pub mod file_path {
 							.unwrap_or(PrismaValue::Null),
 					)]),
 				),
-				Self::ParentIdInVec(value) => (
-					"parent_id".to_string(),
+				Self::ParentIdInVec(value) => SerializedWhere::new(
+					"parent_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -6672,8 +6847,8 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::ParentIdNotInVec(value) => (
-					"parent_id".to_string(),
+				Self::ParentIdNotInVec(value) => SerializedWhere::new(
+					"parent_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -6684,61 +6859,69 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::ParentIdLt(value) => (
-					"parent_id".to_string(),
+				Self::ParentIdLt(value) => SerializedWhere::new(
+					"parent_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::ParentIdLte(value) => (
-					"parent_id".to_string(),
+				Self::ParentIdLte(value) => SerializedWhere::new(
+					"parent_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::ParentIdGt(value) => (
-					"parent_id".to_string(),
+				Self::ParentIdGt(value) => SerializedWhere::new(
+					"parent_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::ParentIdGte(value) => (
-					"parent_id".to_string(),
+				Self::ParentIdGte(value) => SerializedWhere::new(
+					"parent_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::ParentIdNot(value) => (
-					"parent_id".to_string(),
+				Self::ParentIdNot(value) => SerializedWhere::new(
+					"parent_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::ParentIs(value) => (
-					"parent".to_string(),
+				Self::ParentIs(where_params) => SerializedWhere::new(
+					"parent",
 					SerializedWhereValue::Object(vec![(
 						"is".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::ParentIsNot(value) => (
-					"parent".to_string(),
+				Self::ParentIsNot(where_params) => SerializedWhere::new(
+					"parent",
 					SerializedWhereValue::Object(vec![(
 						"isNot".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::FileIdEquals(value) => (
-					"file_id".to_string(),
+				Self::FileIdEquals(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						value
@@ -6746,8 +6929,8 @@ pub mod file_path {
 							.unwrap_or(PrismaValue::Null),
 					)]),
 				),
-				Self::FileIdInVec(value) => (
-					"file_id".to_string(),
+				Self::FileIdInVec(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -6758,8 +6941,8 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::FileIdNotInVec(value) => (
-					"file_id".to_string(),
+				Self::FileIdNotInVec(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -6770,68 +6953,76 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::FileIdLt(value) => (
-					"file_id".to_string(),
+				Self::FileIdLt(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIdLte(value) => (
-					"file_id".to_string(),
+				Self::FileIdLte(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIdGt(value) => (
-					"file_id".to_string(),
+				Self::FileIdGt(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIdGte(value) => (
-					"file_id".to_string(),
+				Self::FileIdGte(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIdNot(value) => (
-					"file_id".to_string(),
+				Self::FileIdNot(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIs(value) => (
-					"File".to_string(),
+				Self::FileIs(where_params) => SerializedWhere::new(
+					"File",
 					SerializedWhereValue::Object(vec![(
 						"is".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::FileIsNot(value) => (
-					"File".to_string(),
+				Self::FileIsNot(where_params) => SerializedWhere::new(
+					"File",
 					SerializedWhereValue::Object(vec![(
 						"isNot".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::NameEquals(value) => (
-					"name".to_string(),
+				Self::NameEquals(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameInVec(value) => (
-					"name".to_string(),
+				Self::NameInVec(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -6839,8 +7030,8 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::NameNotInVec(value) => (
-					"name".to_string(),
+				Self::NameNotInVec(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -6848,87 +7039,99 @@ pub mod file_path {
 						),
 					)]),
 				),
-				Self::NameLt(value) => (
-					"name".to_string(),
+				Self::NameLt(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameLte(value) => (
-					"name".to_string(),
+				Self::NameLte(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameGt(value) => (
-					"name".to_string(),
+				Self::NameGt(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameGte(value) => (
-					"name".to_string(),
+				Self::NameGte(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameContains(value) => (
-					"name".to_string(),
+				Self::NameContains(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"contains".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameStartsWith(value) => (
-					"name".to_string(),
+				Self::NameStartsWith(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"startsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameEndsWith(value) => (
-					"name".to_string(),
+				Self::NameEndsWith(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"endsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameNot(value) => (
-					"name".to_string(),
+				Self::NameNot(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::ChildrenSome(value) => (
-					"children".to_string(),
+				Self::ChildrenSome(where_params) => SerializedWhere::new(
+					"children",
 					SerializedWhereValue::Object(vec![(
 						"some".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::ChildrenEvery(value) => (
-					"children".to_string(),
+				Self::ChildrenEvery(where_params) => SerializedWhere::new(
+					"children",
 					SerializedWhereValue::Object(vec![(
 						"every".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::ChildrenNone(value) => (
-					"children".to_string(),
+				Self::ChildrenNone(where_params) => SerializedWhere::new(
+					"children",
 					SerializedWhereValue::Object(vec![(
 						"none".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -7495,11 +7698,14 @@ pub mod file {
 					"file_paths".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
+						PrismaValue::Object(
 							where_params
 								.into_iter()
-								.map(Into::<super::file_path::WhereParam>::into),
-						)),
+								.map(Into::<super::file_path::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkFilePaths(where_params) => (
@@ -7507,13 +7713,12 @@ pub mod file {
 					PrismaValue::Object(vec![(
 						"disconnect".to_string(),
 						PrismaValue::Object(
-							transform_equals(
-								where_params
-									.into_iter()
-									.map(Into::<super::file_path::WhereParam>::into),
-							)
-							.into_iter()
-							.collect(),
+							where_params
+								.into_iter()
+								.map(Into::<super::file_path::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
 						),
 					)]),
 				),
@@ -7521,11 +7726,14 @@ pub mod file {
 					"TagOnFile".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
+						PrismaValue::Object(
 							where_params
 								.into_iter()
-								.map(Into::<super::tag_on_file::WhereParam>::into),
-						)),
+								.map(Into::<super::tag_on_file::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkTagOnFile(where_params) => (
@@ -7533,13 +7741,12 @@ pub mod file {
 					PrismaValue::Object(vec![(
 						"disconnect".to_string(),
 						PrismaValue::Object(
-							transform_equals(
-								where_params
-									.into_iter()
-									.map(Into::<super::tag_on_file::WhereParam>::into),
-							)
-							.into_iter()
-							.collect(),
+							where_params
+								.into_iter()
+								.map(Into::<super::tag_on_file::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
 						),
 					)]),
 				),
@@ -7618,42 +7825,47 @@ pub mod file {
 	impl Into<SerializedWhere> for WhereParam {
 		fn into(self) -> SerializedWhere {
 			match self {
-				Self::Not(value) => (
-					"NOT".to_string(),
-					SerializedWhereValue::List(
+				Self::Not(value) => SerializedWhere::new(
+					"NOT",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::Or(value) => (
-					"OR".to_string(),
+				Self::Or(value) => SerializedWhere::new(
+					"OR",
 					SerializedWhereValue::List(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
+							.map(|v| vec![v])
+							.map(PrismaValue::Object)
 							.collect(),
 					),
 				),
-				Self::And(value) => (
-					"AND".to_string(),
-					SerializedWhereValue::List(
+				Self::And(value) => SerializedWhere::new(
+					"AND",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::LocalIdEquals(value) => (
-					"local_id".to_string(),
+				Self::LocalIdEquals(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdInVec(value) => (
-					"local_id".to_string(),
+				Self::LocalIdInVec(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -7664,8 +7876,8 @@ pub mod file {
 						),
 					)]),
 				),
-				Self::LocalIdNotInVec(value) => (
-					"local_id".to_string(),
+				Self::LocalIdNotInVec(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -7676,50 +7888,50 @@ pub mod file {
 						),
 					)]),
 				),
-				Self::LocalIdLt(value) => (
-					"local_id".to_string(),
+				Self::LocalIdLt(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdLte(value) => (
-					"local_id".to_string(),
+				Self::LocalIdLte(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdGt(value) => (
-					"local_id".to_string(),
+				Self::LocalIdGt(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdGte(value) => (
-					"local_id".to_string(),
+				Self::LocalIdGte(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdNot(value) => (
-					"local_id".to_string(),
+				Self::LocalIdNot(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::CasIdEquals(value) => (
-					"cas_id".to_string(),
+				Self::CasIdEquals(value) => SerializedWhere::new(
+					"cas_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::CasIdInVec(value) => (
-					"cas_id".to_string(),
+				Self::CasIdInVec(value) => SerializedWhere::new(
+					"cas_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -7727,8 +7939,8 @@ pub mod file {
 						),
 					)]),
 				),
-				Self::CasIdNotInVec(value) => (
-					"cas_id".to_string(),
+				Self::CasIdNotInVec(value) => SerializedWhere::new(
+					"cas_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -7736,22 +7948,22 @@ pub mod file {
 						),
 					)]),
 				),
-				Self::CasIdNot(value) => (
-					"cas_id".to_string(),
+				Self::CasIdNot(value) => SerializedWhere::new(
+					"cas_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::SizeInBytesEquals(value) => (
-					"size_in_bytes".to_string(),
+				Self::SizeInBytesEquals(value) => SerializedWhere::new(
+					"size_in_bytes",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::SizeInBytesInVec(value) => (
-					"size_in_bytes".to_string(),
+				Self::SizeInBytesInVec(value) => SerializedWhere::new(
+					"size_in_bytes",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -7762,8 +7974,8 @@ pub mod file {
 						),
 					)]),
 				),
-				Self::SizeInBytesNotInVec(value) => (
-					"size_in_bytes".to_string(),
+				Self::SizeInBytesNotInVec(value) => SerializedWhere::new(
+					"size_in_bytes",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -7774,93 +7986,117 @@ pub mod file {
 						),
 					)]),
 				),
-				Self::SizeInBytesLt(value) => (
-					"size_in_bytes".to_string(),
+				Self::SizeInBytesLt(value) => SerializedWhere::new(
+					"size_in_bytes",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::SizeInBytesLte(value) => (
-					"size_in_bytes".to_string(),
+				Self::SizeInBytesLte(value) => SerializedWhere::new(
+					"size_in_bytes",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::SizeInBytesGt(value) => (
-					"size_in_bytes".to_string(),
+				Self::SizeInBytesGt(value) => SerializedWhere::new(
+					"size_in_bytes",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::SizeInBytesGte(value) => (
-					"size_in_bytes".to_string(),
+				Self::SizeInBytesGte(value) => SerializedWhere::new(
+					"size_in_bytes",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::SizeInBytesNot(value) => (
-					"size_in_bytes".to_string(),
+				Self::SizeInBytesNot(value) => SerializedWhere::new(
+					"size_in_bytes",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FilePathsSome(value) => (
-					"file_paths".to_string(),
+				Self::FilePathsSome(where_params) => SerializedWhere::new(
+					"file_paths",
 					SerializedWhereValue::Object(vec![(
 						"some".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::FilePathsEvery(value) => (
-					"file_paths".to_string(),
+				Self::FilePathsEvery(where_params) => SerializedWhere::new(
+					"file_paths",
 					SerializedWhereValue::Object(vec![(
 						"every".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::FilePathsNone(value) => (
-					"file_paths".to_string(),
+				Self::FilePathsNone(where_params) => SerializedWhere::new(
+					"file_paths",
 					SerializedWhereValue::Object(vec![(
 						"none".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::TagOnFileSome(value) => (
-					"TagOnFile".to_string(),
+				Self::TagOnFileSome(where_params) => SerializedWhere::new(
+					"TagOnFile",
 					SerializedWhereValue::Object(vec![(
 						"some".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::TagOnFileEvery(value) => (
-					"TagOnFile".to_string(),
+				Self::TagOnFileEvery(where_params) => SerializedWhere::new(
+					"TagOnFile",
 					SerializedWhereValue::Object(vec![(
 						"every".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::TagOnFileNone(value) => (
-					"TagOnFile".to_string(),
+				Self::TagOnFileNone(where_params) => SerializedWhere::new(
+					"TagOnFile",
 					SerializedWhereValue::Object(vec![(
 						"none".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -8299,11 +8535,14 @@ pub mod tag {
 					"TagOnFile".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
+						PrismaValue::Object(
 							where_params
 								.into_iter()
-								.map(Into::<super::tag_on_file::WhereParam>::into),
-						)),
+								.map(Into::<super::tag_on_file::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::UnlinkTagOnFile(where_params) => (
@@ -8311,13 +8550,12 @@ pub mod tag {
 					PrismaValue::Object(vec![(
 						"disconnect".to_string(),
 						PrismaValue::Object(
-							transform_equals(
-								where_params
-									.into_iter()
-									.map(Into::<super::tag_on_file::WhereParam>::into),
-							)
-							.into_iter()
-							.collect(),
+							where_params
+								.into_iter()
+								.map(Into::<super::tag_on_file::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
 						),
 					)]),
 				),
@@ -8395,42 +8633,47 @@ pub mod tag {
 	impl Into<SerializedWhere> for WhereParam {
 		fn into(self) -> SerializedWhere {
 			match self {
-				Self::Not(value) => (
-					"NOT".to_string(),
-					SerializedWhereValue::List(
+				Self::Not(value) => SerializedWhere::new(
+					"NOT",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::Or(value) => (
-					"OR".to_string(),
+				Self::Or(value) => SerializedWhere::new(
+					"OR",
 					SerializedWhereValue::List(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
+							.map(|v| vec![v])
+							.map(PrismaValue::Object)
 							.collect(),
 					),
 				),
-				Self::And(value) => (
-					"AND".to_string(),
-					SerializedWhereValue::List(
+				Self::And(value) => SerializedWhere::new(
+					"AND",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::LocalIdEquals(value) => (
-					"local_id".to_string(),
+				Self::LocalIdEquals(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdInVec(value) => (
-					"local_id".to_string(),
+				Self::LocalIdInVec(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -8441,8 +8684,8 @@ pub mod tag {
 						),
 					)]),
 				),
-				Self::LocalIdNotInVec(value) => (
-					"local_id".to_string(),
+				Self::LocalIdNotInVec(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -8453,50 +8696,50 @@ pub mod tag {
 						),
 					)]),
 				),
-				Self::LocalIdLt(value) => (
-					"local_id".to_string(),
+				Self::LocalIdLt(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdLte(value) => (
-					"local_id".to_string(),
+				Self::LocalIdLte(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdGt(value) => (
-					"local_id".to_string(),
+				Self::LocalIdGt(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdGte(value) => (
-					"local_id".to_string(),
+				Self::LocalIdGte(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::LocalIdNot(value) => (
-					"local_id".to_string(),
+				Self::LocalIdNot(value) => SerializedWhere::new(
+					"local_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::IdEquals(value) => (
-					"id".to_string(),
+				Self::IdEquals(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::IdInVec(value) => (
-					"id".to_string(),
+				Self::IdInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -8504,8 +8747,8 @@ pub mod tag {
 						),
 					)]),
 				),
-				Self::IdNotInVec(value) => (
-					"id".to_string(),
+				Self::IdNotInVec(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -8513,22 +8756,22 @@ pub mod tag {
 						),
 					)]),
 				),
-				Self::IdNot(value) => (
-					"id".to_string(),
+				Self::IdNot(value) => SerializedWhere::new(
+					"id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Bytes(value),
 					)]),
 				),
-				Self::NameEquals(value) => (
-					"name".to_string(),
+				Self::NameEquals(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameInVec(value) => (
-					"name".to_string(),
+				Self::NameInVec(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -8536,8 +8779,8 @@ pub mod tag {
 						),
 					)]),
 				),
-				Self::NameNotInVec(value) => (
-					"name".to_string(),
+				Self::NameNotInVec(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -8545,87 +8788,99 @@ pub mod tag {
 						),
 					)]),
 				),
-				Self::NameLt(value) => (
-					"name".to_string(),
+				Self::NameLt(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameLte(value) => (
-					"name".to_string(),
+				Self::NameLte(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameGt(value) => (
-					"name".to_string(),
+				Self::NameGt(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameGte(value) => (
-					"name".to_string(),
+				Self::NameGte(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameContains(value) => (
-					"name".to_string(),
+				Self::NameContains(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"contains".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameStartsWith(value) => (
-					"name".to_string(),
+				Self::NameStartsWith(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"startsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameEndsWith(value) => (
-					"name".to_string(),
+				Self::NameEndsWith(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"endsWith".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::NameNot(value) => (
-					"name".to_string(),
+				Self::NameNot(value) => SerializedWhere::new(
+					"name",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::String(value),
 					)]),
 				),
-				Self::TagOnFileSome(value) => (
-					"TagOnFile".to_string(),
+				Self::TagOnFileSome(where_params) => SerializedWhere::new(
+					"TagOnFile",
 					SerializedWhereValue::Object(vec![(
 						"some".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::TagOnFileEvery(value) => (
-					"TagOnFile".to_string(),
+				Self::TagOnFileEvery(where_params) => SerializedWhere::new(
+					"TagOnFile",
 					SerializedWhereValue::Object(vec![(
 						"every".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::TagOnFileNone(value) => (
-					"TagOnFile".to_string(),
+				Self::TagOnFileNone(where_params) => SerializedWhere::new(
+					"TagOnFile",
 					SerializedWhereValue::Object(vec![(
 						"none".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -9062,9 +9317,14 @@ pub mod tag_on_file {
 					"tag".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
-							vec![Into::<super::tag::WhereParam>::into(where_param)].into_iter(),
-						)),
+						PrismaValue::Object(
+							vec![where_param]
+								.into_iter()
+								.map(Into::<super::tag::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 				SetParam::SetFileId(value) => {
@@ -9102,9 +9362,14 @@ pub mod tag_on_file {
 					"file".to_string(),
 					PrismaValue::Object(vec![(
 						"connect".to_string(),
-						PrismaValue::Object(transform_equals(
-							vec![Into::<super::file::WhereParam>::into(where_param)].into_iter(),
-						)),
+						PrismaValue::Object(
+							vec![where_param]
+								.into_iter()
+								.map(Into::<super::file::WhereParam>::into)
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}
@@ -9166,49 +9431,54 @@ pub mod tag_on_file {
 	impl Into<SerializedWhere> for WhereParam {
 		fn into(self) -> SerializedWhere {
 			match self {
-				Self::Not(value) => (
-					"NOT".to_string(),
-					SerializedWhereValue::List(
+				Self::Not(value) => SerializedWhere::new(
+					"NOT",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::Or(value) => (
-					"OR".to_string(),
+				Self::Or(value) => SerializedWhere::new(
+					"OR",
 					SerializedWhereValue::List(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
+							.map(|v| vec![v])
+							.map(PrismaValue::Object)
 							.collect(),
 					),
 				),
-				Self::And(value) => (
-					"AND".to_string(),
-					SerializedWhereValue::List(
+				Self::And(value) => SerializedWhere::new(
+					"AND",
+					SerializedWhereValue::Object(
 						value
 							.into_iter()
-							.map(|v| PrismaValue::Object(transform_equals(vec![v].into_iter())))
+							.map(Into::<SerializedWhere>::into)
+							.map(Into::into)
 							.collect(),
 					),
 				),
-				Self::TagIdFileIdEquals(tag_id, file_id) => (
-					"tag_id_file_id".to_string(),
+				Self::TagIdFileIdEquals(tag_id, file_id) => SerializedWhere::new(
+					"tag_id_file_id",
 					SerializedWhereValue::Object(vec![
 						("tag_id".to_string(), PrismaValue::Int(tag_id as i64)),
 						("file_id".to_string(), PrismaValue::Int(file_id as i64)),
 					]),
 				),
-				Self::TagIdEquals(value) => (
-					"tag_id".to_string(),
+				Self::TagIdEquals(value) => SerializedWhere::new(
+					"tag_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::TagIdInVec(value) => (
-					"tag_id".to_string(),
+				Self::TagIdInVec(value) => SerializedWhere::new(
+					"tag_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -9219,8 +9489,8 @@ pub mod tag_on_file {
 						),
 					)]),
 				),
-				Self::TagIdNotInVec(value) => (
-					"tag_id".to_string(),
+				Self::TagIdNotInVec(value) => SerializedWhere::new(
+					"tag_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -9231,68 +9501,76 @@ pub mod tag_on_file {
 						),
 					)]),
 				),
-				Self::TagIdLt(value) => (
-					"tag_id".to_string(),
+				Self::TagIdLt(value) => SerializedWhere::new(
+					"tag_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::TagIdLte(value) => (
-					"tag_id".to_string(),
+				Self::TagIdLte(value) => SerializedWhere::new(
+					"tag_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::TagIdGt(value) => (
-					"tag_id".to_string(),
+				Self::TagIdGt(value) => SerializedWhere::new(
+					"tag_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::TagIdGte(value) => (
-					"tag_id".to_string(),
+				Self::TagIdGte(value) => SerializedWhere::new(
+					"tag_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::TagIdNot(value) => (
-					"tag_id".to_string(),
+				Self::TagIdNot(value) => SerializedWhere::new(
+					"tag_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::TagIs(value) => (
-					"tag".to_string(),
+				Self::TagIs(where_params) => SerializedWhere::new(
+					"tag",
 					SerializedWhereValue::Object(vec![(
 						"is".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::TagIsNot(value) => (
-					"tag".to_string(),
+				Self::TagIsNot(where_params) => SerializedWhere::new(
+					"tag",
 					SerializedWhereValue::Object(vec![(
 						"isNot".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::FileIdEquals(value) => (
-					"file_id".to_string(),
+				Self::FileIdEquals(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"equals".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIdInVec(value) => (
-					"file_id".to_string(),
+				Self::FileIdInVec(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"in".to_string(),
 						PrismaValue::List(
@@ -9303,8 +9581,8 @@ pub mod tag_on_file {
 						),
 					)]),
 				),
-				Self::FileIdNotInVec(value) => (
-					"file_id".to_string(),
+				Self::FileIdNotInVec(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"notIn".to_string(),
 						PrismaValue::List(
@@ -9315,57 +9593,65 @@ pub mod tag_on_file {
 						),
 					)]),
 				),
-				Self::FileIdLt(value) => (
-					"file_id".to_string(),
+				Self::FileIdLt(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"lt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIdLte(value) => (
-					"file_id".to_string(),
+				Self::FileIdLte(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"lte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIdGt(value) => (
-					"file_id".to_string(),
+				Self::FileIdGt(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"gt".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIdGte(value) => (
-					"file_id".to_string(),
+				Self::FileIdGte(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"gte".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIdNot(value) => (
-					"file_id".to_string(),
+				Self::FileIdNot(value) => SerializedWhere::new(
+					"file_id",
 					SerializedWhereValue::Object(vec![(
 						"not".to_string(),
 						PrismaValue::Int(value as i64),
 					)]),
 				),
-				Self::FileIs(value) => (
-					"file".to_string(),
+				Self::FileIs(where_params) => SerializedWhere::new(
+					"file",
 					SerializedWhereValue::Object(vec![(
 						"is".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
-				Self::FileIsNot(value) => (
-					"file".to_string(),
+				Self::FileIsNot(where_params) => SerializedWhere::new(
+					"file",
 					SerializedWhereValue::Object(vec![(
 						"isNot".to_string(),
-						PrismaValue::Object(transform_equals(
-							value.into_iter().map(Into::<SerializedWhere>::into),
-						)),
+						PrismaValue::Object(
+							where_params
+								.into_iter()
+								.map(Into::<SerializedWhere>::into)
+								.map(SerializedWhere::transform_equals)
+								.collect(),
+						),
 					)]),
 				),
 			}

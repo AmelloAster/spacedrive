@@ -371,7 +371,7 @@ pub mod file_path {
 		#[serde(rename = "name")]
 		SetName(String),
 		#[serde(rename = "file_id")]
-		SetFileId(Option<i32>), // An owned record can only have intra-table relations to records with the same owner
+		SetFileId(Option<Vec<u8>>), // An owned record can only have intra-table relations to records with the same owner
 		#[serde(rename = "parent_id")]
 		SetParentId(Option<i32>),
 	}

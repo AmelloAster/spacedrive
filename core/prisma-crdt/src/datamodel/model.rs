@@ -3,11 +3,12 @@ use std::{ops::Deref, str::FromStr};
 use crate::attribute::Attribute;
 use crate::prelude::*;
 
+#[derive(Debug)]
 pub struct Model<'a> {
 	pub prisma: &'a dml::Model,
 	pub name_snake: Ident,
 	pub typ: ModelType<'a>,
-	pub fields: Vec<Rc<Field<'a>>>,
+	pub fields: Vec<Rc<RefCell<Field<'a>>>>,
 }
 
 impl<'a> Model<'a> {
@@ -19,9 +20,9 @@ impl<'a> Model<'a> {
 			.map(Result::unwrap)
 			.unwrap();
 
-		let typ = ModelType::from_attribute(&crdt_attribute, model)?;
-
 		let fields = model.fields().map(Field::new).collect::<Vec<_>>();
+
+		let typ = ModelType::from_attribute(&crdt_attribute, &fields, model)?;
 
 		let model = Rc::new(Self {
 			prisma: model,
@@ -30,13 +31,26 @@ impl<'a> Model<'a> {
 			fields,
 		});
 
+		for field in &model.fields {
+			*field.borrow_mut().model.borrow_mut() = Rc::downgrade(&model);
+		}
+
 		Ok(model)
 	}
 
 	pub fn resolve_relations(&self, datamodel: &Datamodel<'a>) {
 		self.fields
 			.iter()
-			.for_each(|f| f.resolve_relations(datamodel));
+			.for_each(|f| f.borrow().resolve_relations(self, datamodel));
+	}
+
+	pub fn get_sync_id(&self, primary_key: &FieldRef<'a>) -> Option<&FieldRef<'a>> {
+		match &self.typ {
+			ModelType::Local { id } => id.get_sync_id(primary_key),
+			ModelType::Owned { id, .. } => id.get_sync_id(primary_key),
+			ModelType::Shared { id, .. } => id.get_sync_id(primary_key),
+			ModelType::Relation { .. } => None,
+		}
 	}
 }
 
@@ -47,48 +61,55 @@ impl<'a> Deref for Model<'a> {
 	}
 }
 
+#[derive(Debug)]
 pub enum ModelType<'a> {
 	Local {
-		id: SyncIDField<'a>,
+		id: SyncIDMapping<'a>,
 	},
 	Owned {
-		owner: &'a dml::Field,
-		id: SyncIDField<'a>,
+		owner: FieldRef<'a>,
+		id: SyncIDMapping<'a>,
 	},
 	Shared {
-		id: SyncIDField<'a>,
+		id: SyncIDMapping<'a>,
 		create: SharedCreateType,
 	},
 	Relation {
-		item: &'a dml::Field,
-		group: &'a dml::Field,
+		item: FieldRef<'a>,
+		group: FieldRef<'a>,
 	},
 }
 
 impl<'a> ModelType<'a> {
-	pub fn from_attribute(attribute: &Attribute, model: &'a dml::Model) -> Result<Self, String> {
+	pub fn from_attribute(
+		attribute: &Attribute,
+		fields: &[FieldRef<'a>],
+		model: &'a dml::Model,
+	) -> Result<Self, String> {
 		let ret = match attribute.name {
 			"local" => {
-				let id = SyncIDField::from_attribute(attribute, model)?;
+				let id = SyncIDMapping::from_attribute(attribute, fields, model)?;
 
 				ModelType::Local { id }
 			}
 			"owned" => {
-				let id = SyncIDField::from_attribute(attribute, model)?;
+				let id = SyncIDMapping::from_attribute(attribute, fields, model)?;
 
 				let owner = attribute
 					.field("owner")
 					.ok_or(format!("Missing owner field"))
 					.and_then(|owner| {
-						model
-							.find_field(owner)
+						fields
+							.iter()
+							.find(|f| f.borrow().name() == owner)
+							.map(Clone::clone)
 							.ok_or(format!("Unknown owner field {}", owner))
 					})?;
 
 				ModelType::Owned { id, owner }
 			}
 			"shared" => {
-				let id = SyncIDField::from_attribute(attribute, model)?;
+				let id = SyncIDMapping::from_attribute(attribute, fields, model)?;
 
 				let create = attribute
 					.field("create")
@@ -102,8 +123,10 @@ impl<'a> ModelType<'a> {
 					.field("item")
 					.ok_or(format!("Missing item field"))
 					.and_then(|item| {
-						model
-							.find_field(item)
+						fields
+							.iter()
+							.find(|f| f.borrow().name() == item)
+							.map(Clone::clone)
 							.ok_or(format!("Unknown item field {}", item))
 					})?;
 
@@ -111,8 +134,10 @@ impl<'a> ModelType<'a> {
 					.field("group")
 					.ok_or(format!("Missing group field"))
 					.and_then(|group| {
-						model
-							.find_field(group)
+						fields
+							.iter()
+							.find(|f| f.borrow().name() == group)
+							.map(Clone::clone)
 							.ok_or(format!("Unknown group field {}", group))
 					})?;
 
@@ -125,40 +150,95 @@ impl<'a> ModelType<'a> {
 	}
 }
 
-pub enum SyncIDField<'a> {
-	Single(&'a dml::Field),
-	Compound(Vec<&'a dml::Field>),
+#[derive(Debug)]
+pub enum SyncIDMapping<'a> {
+	Single {
+		primary_key: FieldRef<'a>,
+		sync_id: FieldRef<'a>,
+	},
+	Compound(Vec<(FieldRef<'a>, FieldRef<'a>)>),
 }
 
-impl<'a> SyncIDField<'a> {
-	pub fn from_attribute(attribute: &Attribute, model: &'a dml::Model) -> Result<Self, String> {
+impl<'a> SyncIDMapping<'a> {
+	pub fn from_attribute(
+		attribute: &Attribute,
+		fields: &[FieldRef<'a>],
+		model: &dml::Model,
+	) -> Result<Self, String> {
+		let primary_key = model
+			.primary_key
+			.as_ref()
+			.ok_or(format!("Model {} has no primary key", model.name))?;
+
 		attribute
 			.field("id")
 			.map(|field_str| {
-				model
-					.find_field(field_str)
-					.map(Self::Single)
+				if primary_key.fields.len() != 1 {
+					Err(format!(
+						"Model {} has a primary key with {} fields",
+						model.name,
+						primary_key.fields.len()
+					))?
+				}
+
+				let primary_key_field = fields
+					.iter()
+					.find(|f| f.borrow().name() == &primary_key.fields[0].name)
+					.ok_or(&format!(
+						"Failed to find field {}",
+						&primary_key.fields[0].name
+					))?;
+
+				fields
+					.iter()
+					.find(|f| f.borrow().name() == field_str)
+					.map(|f| Self::Single {
+						primary_key: primary_key_field.clone(),
+						sync_id: f.clone(),
+					})
 					.ok_or(format!("Model {} has no field {field_str}", model.name))
 			})
 			.unwrap_or_else(|| {
-				model
-					.primary_key
-					.as_ref()
-					.ok_or(format!("Model {} has no primary key", model.name))?
+				primary_key
 					.fields
 					.iter()
 					.map(|field| {
-						model.find_field(&field.name).ok_or(format!(
-							"Unknown field {} on model {}",
-							field.name, model.name
-						))
+						let primary_key_field = fields
+							.iter()
+							.find(|f| f.borrow().name() == &field.name)
+							.map(Clone::clone)
+							.ok_or(format!("Model {} has no field {}", model.name, field.name))?;
+
+						fields
+							.iter()
+							.find(|f| f.borrow().name() == &field.name) // TODO: support arrays
+							.map(|sync_id_field| (primary_key_field.clone(), sync_id_field.clone()))
+							.ok_or(format!(
+								"Unknown field {} on model {}",
+								field.name, model.name
+							))
 					})
 					.collect::<Result<_, _>>()
 					.map(Self::Compound)
 			})
 	}
+
+	pub fn get_sync_id(&self, primary_key: &FieldRef<'a>) -> Option<&FieldRef<'a>> {
+		match self {
+			Self::Single {
+				primary_key: pk,
+				sync_id,
+			} if Rc::ptr_eq(primary_key, pk) => Some(sync_id),
+			Self::Compound(mappings) => mappings
+				.iter()
+				.find(|(pk, _)| Rc::ptr_eq(primary_key, pk))
+				.map(|(_, sync_id)| sync_id),
+			_ => None,
+		}
+	}
 }
 
+#[derive(Debug)]
 pub enum SharedCreateType {
 	Unique,
 	Atomic,
