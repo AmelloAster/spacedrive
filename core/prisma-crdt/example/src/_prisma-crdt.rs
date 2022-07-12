@@ -71,6 +71,10 @@ pub mod node {
 			}
 		}
 	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct SyncID {
+		pub id: Vec<u8>,
+	}
 	pub struct Create<'a> {
 		client: &'a super::_prisma::PrismaCRDTClient,
 		set_params: CreateParams,
@@ -212,6 +216,10 @@ pub mod location {
 				Self::SetName(v) => crate::prisma::location::name::set(v),
 			}
 		}
+	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct SyncID {
+		pub id: Vec<u8>,
 	}
 	pub struct Create<'a> {
 		client: &'a super::_prisma::PrismaCRDTClient,
@@ -390,6 +398,11 @@ pub mod file_path {
 			}
 		}
 	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct SyncID {
+		pub id: i32,
+		pub location_id: Vec<u8>,
+	}
 	pub struct Create<'a> {
 		client: &'a super::_prisma::PrismaCRDTClient,
 		set_params: CreateParams,
@@ -511,6 +524,10 @@ pub mod file {
 			}
 		}
 	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct SyncID {
+		pub cas_id: Vec<u8>,
+	}
 	pub struct Create<'a> {
 		client: &'a super::_prisma::PrismaCRDTClient,
 		set_params: CreateParams,
@@ -628,6 +645,10 @@ pub mod tag {
 				Self::SetName(v) => crate::prisma::tag::name::set(v),
 			}
 		}
+	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct SyncID {
+		pub id: Vec<u8>,
 	}
 	pub struct Create<'a> {
 		client: &'a super::_prisma::PrismaCRDTClient,
@@ -760,6 +781,8 @@ pub mod tag_on_file {
 			}
 		}
 	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct SyncID {}
 	pub struct Create<'a> {
 		client: &'a super::_prisma::PrismaCRDTClient,
 		set_params: CreateParams,
