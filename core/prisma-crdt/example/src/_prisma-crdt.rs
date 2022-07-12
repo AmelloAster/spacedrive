@@ -71,6 +71,23 @@ pub mod node {
 			}
 		}
 	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::node::WithParam>,
+	}
+	#[derive(Clone)]
+	pub struct CreateParams {
+		pub _params: Vec<SetParam>,
+		pub id: Vec<u8>,
+		pub name: String,
+	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct CRDTCreateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		pub name: String,
+	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
 	}
@@ -195,6 +212,25 @@ pub mod location {
 				Self::SetName(v) => crate::prisma::location::name::set(v),
 			}
 		}
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::location::WithParam>,
+	}
+	#[derive(Clone)]
+	pub struct CreateParams {
+		pub _params: Vec<SetParam>,
+		pub id: Vec<u8>,
+		pub node_id: i32,
+		pub name: String,
+	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct CRDTCreateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		pub node_id: Vec<u8>,
+		pub name: String,
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
@@ -331,9 +367,9 @@ pub mod file_path {
 		#[serde(rename = "location_id")]
 		SetLocationId(Vec<u8>),
 		#[serde(rename = "parent_id")]
-		SetParentId(i32),
+		SetParentId(Option<i32>),
 		#[serde(rename = "file_id")]
-		SetFileId(Vec<u8>),
+		SetFileId(Option<Vec<u8>>),
 		#[serde(rename = "name")]
 		SetName(String),
 	}
@@ -353,6 +389,24 @@ pub mod file_path {
 				Self::SetName(v) => crate::prisma::file_path::name::set(v),
 			}
 		}
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::file_path::WithParam>,
+	}
+	#[derive(Clone)]
+	pub struct CreateParams {
+		pub _params: Vec<SetParam>,
+		pub id: i32,
+		pub location_id: i32,
+		pub name: String,
+	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct CRDTCreateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		pub name: String,
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
@@ -457,6 +511,21 @@ pub mod file {
 			}
 		}
 	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::file::WithParam>,
+	}
+	#[derive(Clone)]
+	pub struct CreateParams {
+		pub _params: Vec<SetParam>,
+		pub cas_id: Vec<u8>,
+	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct CRDTCreateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
 	}
@@ -559,6 +628,23 @@ pub mod tag {
 				Self::SetName(v) => crate::prisma::tag::name::set(v),
 			}
 		}
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::tag::WithParam>,
+	}
+	#[derive(Clone)]
+	pub struct CreateParams {
+		pub _params: Vec<SetParam>,
+		pub id: Vec<u8>,
+		pub name: String,
+	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct CRDTCreateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		pub name: String,
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
@@ -673,6 +759,24 @@ pub mod tag_on_file {
 				}
 			}
 		}
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::tag_on_file::WithParam>,
+	}
+	#[derive(Clone)]
+	pub struct CreateParams {
+		pub _params: Vec<SetParam>,
+		pub tag_id: i32,
+		pub file_id: i32,
+	}
+	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
+	pub struct CRDTCreateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		pub tag_id: Vec<u8>,
+		pub file_id: Vec<u8>,
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,

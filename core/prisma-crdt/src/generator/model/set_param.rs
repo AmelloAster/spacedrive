@@ -36,8 +36,7 @@ impl SetParam {
 					.borrow()
 					.as_ref()
 					.map(|sync_relation| {
-						let relation_field_name =
-							&sync_relation.referenced_field.borrow().name_snake;
+						let relation_field_name = &sync_relation.referenced_field.name_snake;
 
 						quote! {{
 							let res = client
@@ -93,33 +92,10 @@ impl CRDTSetParam {
 			..
 		} = field;
 
-		let relation_field_info = match field_type {
-			FieldType::Scalar {
-				relation_field_info,
-			} => relation_field_info,
-			_ => unreachable!("Cannot create CRDTSetParam from relation field!"),
-		}
-		.borrow();
-
 		let variant_name = format_ident!("Set{}", field_name_pascal);
 
 		let variant = {
-			let variant_type = match relation_field_info.as_ref() {
-				Some(relation_field_info) => {
-					let referenced_field = relation_field_info.referenced_field.borrow();
-					let relation_model = referenced_field.model.borrow().upgrade().unwrap();
-
-					let sync_id_field =
-						relation_model.get_sync_id(&relation_field_info.referenced_field);
-
-					match sync_id_field {
-						Some(field) => field.borrow().type_tokens(),
-						None => quote!(),
-					}
-				}
-				None => field.type_tokens(),
-			};
-
+			let variant_type = field.crdt_type_tokens();
 			let field_name = field.name();
 
 			quote! {
@@ -129,10 +105,18 @@ impl CRDTSetParam {
 		};
 
 		let into_match_arm = {
+			let relation_field_info = match field_type {
+				FieldType::Scalar {
+					relation_field_info,
+				} => relation_field_info,
+				_ => unreachable!("Cannot create CRDTSetParam from relation field!"),
+			}
+			.borrow();
+			
 			let ret = match relation_field_info.as_ref() {
 				Some(sync_relation) => {
-					let relation_name_snake = &sync_relation.relation.borrow().name_snake;
-					let sync_relation_referenced_field = sync_relation.referenced_field.borrow();
+					let relation_name_snake = &sync_relation.relation.name_snake;
+					let sync_relation_referenced_field = &sync_relation.referenced_field;
 					let relation_model_name_snake = &sync_relation_referenced_field
 						.model
 						.borrow()
@@ -159,7 +143,7 @@ impl CRDTSetParam {
 	}
 }
 
-pub fn generate(model: &Model, datamodel: &Datamodel) -> TokenStream {
+pub fn generate(model: &Model) -> TokenStream {
 	let Model {
 		name_snake: model_name_snake,
 		..
@@ -168,8 +152,8 @@ pub fn generate(model: &Model, datamodel: &Datamodel) -> TokenStream {
 	let set_params = model
 		.fields
 		.iter()
-		.filter(|f| f.borrow().is_scalar_field())
-		.map(|f| SetParam::new(&*f.borrow(), model));
+		.filter(|f| f.is_scalar_field())
+		.map(|f| SetParam::new(&*f, model));
 
 	let set_param_variants = set_params.clone().map(|p| p.variant);
 	let set_param_into_match_arms = set_params.clone().map(|p| p.into_match_arm);
@@ -179,8 +163,8 @@ pub fn generate(model: &Model, datamodel: &Datamodel) -> TokenStream {
 	let crdt_set_params = model
 		.fields
 		.iter()
-		.filter(|f| f.borrow().is_scalar_field())
-		.map(|f| CRDTSetParam::new(&*f.borrow(), model));
+		.filter(|f| f.is_scalar_field())
+		.map(|f| CRDTSetParam::new(&*f, model));
 
 	let crdt_set_param_variants = crdt_set_params.clone().map(|p| p.variant);
 	let crdt_set_param_into_match_arms = crdt_set_params.clone().map(|p| p.into_match_arm);

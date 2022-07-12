@@ -8,7 +8,7 @@ pub struct Model<'a> {
 	pub prisma: &'a dml::Model,
 	pub name_snake: Ident,
 	pub typ: ModelType<'a>,
-	pub fields: Vec<Rc<RefCell<Field<'a>>>>,
+	pub fields: Vec<Rc<Field<'a>>>,
 }
 
 impl<'a> Model<'a> {
@@ -32,7 +32,7 @@ impl<'a> Model<'a> {
 		});
 
 		for field in &model.fields {
-			*field.borrow_mut().model.borrow_mut() = Rc::downgrade(&model);
+			*field.model.borrow_mut() = Rc::downgrade(&model);
 		}
 
 		Ok(model)
@@ -41,7 +41,7 @@ impl<'a> Model<'a> {
 	pub fn resolve_relations(&self, datamodel: &Datamodel<'a>) {
 		self.fields
 			.iter()
-			.for_each(|f| f.borrow().resolve_relations(self, datamodel));
+			.for_each(|f| f.resolve_relations(self, datamodel));
 	}
 
 	pub fn get_sync_id(&self, primary_key: &FieldRef<'a>) -> Option<&FieldRef<'a>> {
@@ -50,6 +50,15 @@ impl<'a> Model<'a> {
 			ModelType::Owned { id, .. } => id.get_sync_id(primary_key),
 			ModelType::Shared { id, .. } => id.get_sync_id(primary_key),
 			ModelType::Relation { .. } => None,
+		}
+	}
+
+	pub fn is_sync_id(&self, field: &FieldRef<'a>) -> bool {
+		match &self.typ {
+			ModelType::Local { id } => id.is_sync_id(field),
+			ModelType::Owned { id, .. } => id.is_sync_id(field),
+			ModelType::Shared { id, .. } => id.is_sync_id(field),
+			ModelType::Relation { .. } => false,
 		}
 	}
 }
@@ -101,7 +110,7 @@ impl<'a> ModelType<'a> {
 					.and_then(|owner| {
 						fields
 							.iter()
-							.find(|f| f.borrow().name() == owner)
+							.find(|f| f.name() == owner)
 							.map(Clone::clone)
 							.ok_or(format!("Unknown owner field {}", owner))
 					})?;
@@ -125,7 +134,7 @@ impl<'a> ModelType<'a> {
 					.and_then(|item| {
 						fields
 							.iter()
-							.find(|f| f.borrow().name() == item)
+							.find(|f| f.name() == item)
 							.map(Clone::clone)
 							.ok_or(format!("Unknown item field {}", item))
 					})?;
@@ -136,7 +145,7 @@ impl<'a> ModelType<'a> {
 					.and_then(|group| {
 						fields
 							.iter()
-							.find(|f| f.borrow().name() == group)
+							.find(|f| f.name() == group)
 							.map(Clone::clone)
 							.ok_or(format!("Unknown group field {}", group))
 					})?;
@@ -183,7 +192,7 @@ impl<'a> SyncIDMapping<'a> {
 
 				let primary_key_field = fields
 					.iter()
-					.find(|f| f.borrow().name() == &primary_key.fields[0].name)
+					.find(|f| f.name() == &primary_key.fields[0].name)
 					.ok_or(&format!(
 						"Failed to find field {}",
 						&primary_key.fields[0].name
@@ -191,7 +200,7 @@ impl<'a> SyncIDMapping<'a> {
 
 				fields
 					.iter()
-					.find(|f| f.borrow().name() == field_str)
+					.find(|f| f.name() == field_str)
 					.map(|f| Self::Single {
 						primary_key: primary_key_field.clone(),
 						sync_id: f.clone(),
@@ -205,13 +214,13 @@ impl<'a> SyncIDMapping<'a> {
 					.map(|field| {
 						let primary_key_field = fields
 							.iter()
-							.find(|f| f.borrow().name() == &field.name)
+							.find(|f| f.name() == &field.name)
 							.map(Clone::clone)
 							.ok_or(format!("Model {} has no field {}", model.name, field.name))?;
 
 						fields
 							.iter()
-							.find(|f| f.borrow().name() == &field.name) // TODO: support arrays
+							.find(|f| f.name() == &field.name) // TODO: support arrays
 							.map(|sync_id_field| (primary_key_field.clone(), sync_id_field.clone()))
 							.ok_or(format!(
 								"Unknown field {} on model {}",
@@ -234,6 +243,16 @@ impl<'a> SyncIDMapping<'a> {
 				.find(|(pk, _)| Rc::ptr_eq(primary_key, pk))
 				.map(|(_, sync_id)| sync_id),
 			_ => None,
+		}
+	}
+
+	pub fn is_sync_id(&self, field: &FieldRef<'a>) -> bool {
+		match self {
+			Self::Single { sync_id, .. } => Rc::ptr_eq(sync_id, field),
+			Self::Compound(mappings) => mappings
+				.iter()
+				.any(|(_, sync_id)| Rc::ptr_eq(sync_id, field)),
+			_ => false,
 		}
 	}
 }

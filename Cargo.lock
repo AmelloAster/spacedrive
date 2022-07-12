@@ -1494,7 +1494,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
- "prisma-client-rust 0.5.2",
+ "prisma-client-rust 0.6.0",
  "prisma-crdt",
  "serde",
  "serde_json",
@@ -4122,7 +4122,7 @@ dependencies = [
 
 [[package]]
 name = "prisma-client-rust"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "bigdecimal 0.2.2",
  "chrono",
@@ -4141,7 +4141,7 @@ dependencies = [
 
 [[package]]
 name = "prisma-client-rust-cli"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "datamodel",
  "prisma-client-rust-sdk",
@@ -4158,7 +4158,7 @@ dependencies = [
 
 [[package]]
 name = "prisma-client-rust-sdk"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "convert_case 0.5.0",
  "datamodel",
