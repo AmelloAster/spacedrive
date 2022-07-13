@@ -75,11 +75,6 @@ pub mod node {
 	pub struct SyncID {
 		pub id: Vec<u8>,
 	}
-	pub struct Create<'a> {
-		client: &'a super::_prisma::PrismaCRDTClient,
-		set_params: CreateParams,
-		with_params: Vec<crate::prisma::node::WithParam>,
-	}
 	#[derive(Clone)]
 	pub struct CreateParams {
 		pub _params: Vec<SetParam>,
@@ -90,7 +85,54 @@ pub mod node {
 	pub struct CRDTCreateParams {
 		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
 		pub _params: Vec<CRDTSetParam>,
+		#[serde(rename = "_id")]
+		pub _sync_id: SyncID,
 		pub name: String,
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::node::WithParam>,
+	}
+	impl<'a> Create<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::node::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(self) -> Result<crate::prisma::node::Data, crate::prisma::QueryError> {}
+	}
+	#[derive(serde :: Serialize, serde :: Deserialize)]
+	struct CRDTUpdateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		#[serde(flatten)]
+		pub _sync_id: SyncID,
+	}
+	pub struct Update<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::node::UniqueWhereParam,
+		set_params: Vec<SetParam>,
+	}
+	impl<'a> Update<'a> {
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::node::Data>, crate::prisma::QueryError> {
+		}
+	}
+	pub struct Delete<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::node::UniqueWhereParam,
+		with_params: Vec<crate::prisma::node::WithParam>,
+	}
+	impl<'a> Delete<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::location::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::node::Data>, crate::prisma::QueryError> {
+		}
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
@@ -221,11 +263,6 @@ pub mod location {
 	pub struct SyncID {
 		pub id: Vec<u8>,
 	}
-	pub struct Create<'a> {
-		client: &'a super::_prisma::PrismaCRDTClient,
-		set_params: CreateParams,
-		with_params: Vec<crate::prisma::location::WithParam>,
-	}
 	#[derive(Clone)]
 	pub struct CreateParams {
 		pub _params: Vec<SetParam>,
@@ -237,8 +274,58 @@ pub mod location {
 	pub struct CRDTCreateParams {
 		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
 		pub _params: Vec<CRDTSetParam>,
+		#[serde(rename = "_id")]
+		pub _sync_id: SyncID,
 		pub node_id: Vec<u8>,
 		pub name: String,
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::location::WithParam>,
+	}
+	impl<'a> Create<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::location::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(
+			self,
+		) -> Result<crate::prisma::location::Data, crate::prisma::QueryError> {
+		}
+	}
+	#[derive(serde :: Serialize, serde :: Deserialize)]
+	struct CRDTUpdateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		#[serde(flatten)]
+		pub _sync_id: SyncID,
+	}
+	pub struct Update<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::location::UniqueWhereParam,
+		set_params: Vec<SetParam>,
+	}
+	impl<'a> Update<'a> {
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::location::Data>, crate::prisma::QueryError> {
+		}
+	}
+	pub struct Delete<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::location::UniqueWhereParam,
+		with_params: Vec<crate::prisma::location::WithParam>,
+	}
+	impl<'a> Delete<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::location::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::location::Data>, crate::prisma::QueryError> {
+		}
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
@@ -403,11 +490,6 @@ pub mod file_path {
 		pub id: i32,
 		pub location_id: Vec<u8>,
 	}
-	pub struct Create<'a> {
-		client: &'a super::_prisma::PrismaCRDTClient,
-		set_params: CreateParams,
-		with_params: Vec<crate::prisma::file_path::WithParam>,
-	}
 	#[derive(Clone)]
 	pub struct CreateParams {
 		pub _params: Vec<SetParam>,
@@ -419,7 +501,57 @@ pub mod file_path {
 	pub struct CRDTCreateParams {
 		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
 		pub _params: Vec<CRDTSetParam>,
+		#[serde(rename = "_id")]
+		pub _sync_id: SyncID,
 		pub name: String,
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::file_path::WithParam>,
+	}
+	impl<'a> Create<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::file_path::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(
+			self,
+		) -> Result<crate::prisma::file_path::Data, crate::prisma::QueryError> {
+		}
+	}
+	#[derive(serde :: Serialize, serde :: Deserialize)]
+	struct CRDTUpdateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		#[serde(flatten)]
+		pub _sync_id: SyncID,
+	}
+	pub struct Update<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::file_path::UniqueWhereParam,
+		set_params: Vec<SetParam>,
+	}
+	impl<'a> Update<'a> {
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::file_path::Data>, crate::prisma::QueryError> {
+		}
+	}
+	pub struct Delete<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::file_path::UniqueWhereParam,
+		with_params: Vec<crate::prisma::file_path::WithParam>,
+	}
+	impl<'a> Delete<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::location::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::file_path::Data>, crate::prisma::QueryError> {
+		}
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
@@ -528,11 +660,6 @@ pub mod file {
 	pub struct SyncID {
 		pub cas_id: Vec<u8>,
 	}
-	pub struct Create<'a> {
-		client: &'a super::_prisma::PrismaCRDTClient,
-		set_params: CreateParams,
-		with_params: Vec<crate::prisma::file::WithParam>,
-	}
 	#[derive(Clone)]
 	pub struct CreateParams {
 		pub _params: Vec<SetParam>,
@@ -542,6 +669,53 @@ pub mod file {
 	pub struct CRDTCreateParams {
 		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
 		pub _params: Vec<CRDTSetParam>,
+		#[serde(rename = "_id")]
+		pub _sync_id: SyncID,
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::file::WithParam>,
+	}
+	impl<'a> Create<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::file::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(self) -> Result<crate::prisma::file::Data, crate::prisma::QueryError> {}
+	}
+	#[derive(serde :: Serialize, serde :: Deserialize)]
+	struct CRDTUpdateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		#[serde(flatten)]
+		pub _sync_id: SyncID,
+	}
+	pub struct Update<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::file::UniqueWhereParam,
+		set_params: Vec<SetParam>,
+	}
+	impl<'a> Update<'a> {
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::file::Data>, crate::prisma::QueryError> {
+		}
+	}
+	pub struct Delete<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::file::UniqueWhereParam,
+		with_params: Vec<crate::prisma::file::WithParam>,
+	}
+	impl<'a> Delete<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::location::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::file::Data>, crate::prisma::QueryError> {
+		}
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
@@ -650,11 +824,6 @@ pub mod tag {
 	pub struct SyncID {
 		pub id: Vec<u8>,
 	}
-	pub struct Create<'a> {
-		client: &'a super::_prisma::PrismaCRDTClient,
-		set_params: CreateParams,
-		with_params: Vec<crate::prisma::tag::WithParam>,
-	}
 	#[derive(Clone)]
 	pub struct CreateParams {
 		pub _params: Vec<SetParam>,
@@ -665,7 +834,54 @@ pub mod tag {
 	pub struct CRDTCreateParams {
 		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
 		pub _params: Vec<CRDTSetParam>,
+		#[serde(rename = "_id")]
+		pub _sync_id: SyncID,
 		pub name: String,
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::tag::WithParam>,
+	}
+	impl<'a> Create<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::tag::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(self) -> Result<crate::prisma::tag::Data, crate::prisma::QueryError> {}
+	}
+	#[derive(serde :: Serialize, serde :: Deserialize)]
+	struct CRDTUpdateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		#[serde(flatten)]
+		pub _sync_id: SyncID,
+	}
+	pub struct Update<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::tag::UniqueWhereParam,
+		set_params: Vec<SetParam>,
+	}
+	impl<'a> Update<'a> {
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::tag::Data>, crate::prisma::QueryError> {
+		}
+	}
+	pub struct Delete<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::tag::UniqueWhereParam,
+		with_params: Vec<crate::prisma::tag::WithParam>,
+	}
+	impl<'a> Delete<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::location::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::tag::Data>, crate::prisma::QueryError> {
+		}
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
@@ -783,11 +999,6 @@ pub mod tag_on_file {
 	}
 	#[derive(Clone, :: serde :: Serialize, :: serde :: Deserialize)]
 	pub struct SyncID {}
-	pub struct Create<'a> {
-		client: &'a super::_prisma::PrismaCRDTClient,
-		set_params: CreateParams,
-		with_params: Vec<crate::prisma::tag_on_file::WithParam>,
-	}
 	#[derive(Clone)]
 	pub struct CreateParams {
 		pub _params: Vec<SetParam>,
@@ -798,8 +1009,58 @@ pub mod tag_on_file {
 	pub struct CRDTCreateParams {
 		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
 		pub _params: Vec<CRDTSetParam>,
+		#[serde(rename = "_id")]
+		pub _sync_id: SyncID,
 		pub tag_id: Vec<u8>,
 		pub file_id: Vec<u8>,
+	}
+	pub struct Create<'a> {
+		client: &'a super::_prisma::PrismaCRDTClient,
+		set_params: CreateParams,
+		with_params: Vec<crate::prisma::tag_on_file::WithParam>,
+	}
+	impl<'a> Create<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::tag_on_file::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(
+			self,
+		) -> Result<crate::prisma::tag_on_file::Data, crate::prisma::QueryError> {
+		}
+	}
+	#[derive(serde :: Serialize, serde :: Deserialize)]
+	struct CRDTUpdateParams {
+		#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
+		pub _params: Vec<CRDTSetParam>,
+		#[serde(flatten)]
+		pub _sync_id: SyncID,
+	}
+	pub struct Update<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::tag_on_file::UniqueWhereParam,
+		set_params: Vec<SetParam>,
+	}
+	impl<'a> Update<'a> {
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::tag_on_file::Data>, crate::prisma::QueryError> {
+		}
+	}
+	pub struct Delete<'a> {
+		client: &'a _prisma::PrismaCRDTClient,
+		where_param: crate::prisma::tag_on_file::UniqueWhereParam,
+		with_params: Vec<crate::prisma::tag_on_file::WithParam>,
+	}
+	impl<'a> Delete<'a> {
+		pub fn with(mut self, param: impl Into<crate::prisma::location::WithParam>) -> Self {
+			self.with_params.push(param.into());
+			self
+		}
+		pub async fn exec(
+			self,
+		) -> Result<Option<crate::prisma::tag_on_file::Data>, crate::prisma::QueryError> {
+		}
 	}
 	pub struct Actions<'a> {
 		client: &'a _prisma::PrismaCRDTClient,
