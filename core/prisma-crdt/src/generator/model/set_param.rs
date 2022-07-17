@@ -8,16 +8,10 @@ struct SetParam {
 }
 
 impl SetParam {
-	pub fn new(field: &Field, model: &Model) -> Self {
-		let Model {
-			name_snake: model_name_snake,
-			..
-		} = model;
-		let Field {
-			name_snake: field_name_snake,
-			name_pascal: field_name_pascal,
-			..
-		} = field;
+	pub fn new(field: &Field, model: &Model, datamodel: &Datamodel) -> Self {
+		let model_name_snake = snake_ident(&model.name);
+		let field_name_snake = snake_ident(&field.name());
+		let field_name_pascal = pascal_ident(&field.name());
 
 		let variant_name = format_ident!("Set{}", field_name_pascal);
 
@@ -31,30 +25,57 @@ impl SetParam {
 		let into_crdt_match_arm = {
 			let ret = match &field.typ {
 				FieldType::Scalar {
-					relation_field_info: sync_id_field,
-				} => sync_id_field
-					.borrow()
+					relation_field_info,
+				} => relation_field_info
 					.as_ref()
-					.map(|sync_relation| {
-						let relation_field_name = &sync_relation.referenced_field.name_snake;
+					.and_then(|relation_field_info| {
+						let referenced_field_snake = snake_ident(relation_field_info.referenced_field);
 
-						quote! {{
-							let res = client
-								.#model_name_snake()
-								.find_unique(crate::prisma::#model_name_snake::#field_name_snake::equals(v))
-								.exec()
-								.await
-								.unwrap()
-								.unwrap();
+						let relation_model = datamodel
+							.model(relation_field_info.referenced_model)
+							.unwrap();
+						let relation_model_snake = snake_ident(&relation_model.name);
 
-							CRDTSetParam::#variant_name(res.#relation_field_name)
-						}}
+						let referenced_sync_id_field = relation_model
+							.sync_id_for_pk(&relation_field_info.referenced_field)
+							.expect("referenced_sync_id_field should be present");
+						
+						// If referenced field is a sync ID, it does not need to be converted
+						(!model.is_sync_id(relation_field_info.referenced_field)).then(|| {
+							let referenced_sync_id_field_name_snake = snake_ident(&referenced_sync_id_field.name());
+							
+							let query = quote! {
+								client
+									.client
+									.#relation_model_snake()
+									.find_unique(
+										crate::prisma::#relation_model_snake::#referenced_field_snake::equals(v)
+									)
+									.exec()
+									.await
+									.unwrap()
+									.unwrap()
+									.#referenced_sync_id_field_name_snake
+							};
+							
+							match field.arity() {
+								dml::FieldArity::Optional => {
+									quote! {
+										match v {
+											Some(v) => Some(#query),
+											None => None,
+										}
+									}
+								},
+								_ => query,
+							}
+						})
 					})
-					.unwrap_or(quote!(CRDTSetParam::#variant_name(v))),
+					.unwrap_or(quote!(v)),
 				_ => unreachable!("{:#?}", field.prisma),
 			};
 
-			quote!(Self::#variant_name(v) => #ret)
+			quote!(Self::#variant_name(v) => CRDTSetParam::#variant_name(#ret))
 		};
 
 		let from_pcr_set_impl = quote! {
@@ -80,22 +101,15 @@ struct CRDTSetParam {
 }
 
 impl CRDTSetParam {
-	pub fn new(field: &Field, model: &Model) -> Self {
-		let Model {
-			name_snake: model_name_snake,
-			..
-		} = model;
-		let Field {
-			name_snake: field_name_snake,
-			name_pascal: field_name_pascal,
-			typ: field_type,
-			..
-		} = field;
+	pub fn new(field: &Field, model: &Model, datamodel: &Datamodel) -> Self {
+		let model_name_snake = snake_ident(&model.name);
+		let field_name_snake = snake_ident(&field.name());
+		let field_name_pascal = pascal_ident(&field.name());
 
 		let variant_name = format_ident!("Set{}", field_name_pascal);
 
 		let variant = {
-			let variant_type = field.crdt_type_tokens();
+			let variant_type = field.crdt_type_tokens(datamodel);
 			let field_name = field.name();
 
 			quote! {
@@ -105,31 +119,41 @@ impl CRDTSetParam {
 		};
 
 		let into_match_arm = {
-			let relation_field_info = match field_type {
+			let relation_field_info = match &field.typ {
 				FieldType::Scalar {
 					relation_field_info,
 				} => relation_field_info,
 				_ => unreachable!("Cannot create CRDTSetParam from relation field!"),
-			}
-			.borrow();
-			
-			let ret = match relation_field_info.as_ref() {
-				Some(sync_relation) => {
-					let relation_name_snake = &sync_relation.relation.name_snake;
-					let sync_relation_referenced_field = &sync_relation.referenced_field;
-					let relation_model_name_snake = &sync_relation_referenced_field
-						.model
-						.borrow()
-						.upgrade()
-						.unwrap()
-						.name_snake;
-					let sync_id_field_name_snake = &sync_relation_referenced_field.name_snake;
+			};
 
-					quote!(crate::prisma::#model_name_snake::#relation_name_snake::link(
-						crate::prisma::#relation_model_name_snake::#sync_id_field_name_snake::equals(v)
-					))
+			let ret = match relation_field_info.as_ref() {
+				Some(relation_field_info)
+					if 
+						&model.name != &relation_field_info.referenced_model // This probably isn't good enough
+					 =>
+				{
+					let relation_name_snake = snake_ident(relation_field_info.relation);
+					let relation_model = datamodel.model(relation_field_info
+						.referenced_model).unwrap();
+					let relation_model_name_snake = snake_ident(&relation_model.name);
+
+					let referenced_sync_id_field = relation_model
+						.sync_id_for_pk(&relation_field_info.referenced_field)
+						.expect("referenced_sync_id_field should be present");
+					let referenced_sync_id_field_name_snake = snake_ident(referenced_sync_id_field.name());
+
+					let ret = quote!(crate::prisma::#model_name_snake::#relation_name_snake::link(
+						crate::prisma::#relation_model_name_snake::#referenced_sync_id_field_name_snake::equals(v)
+					));
+
+					match field.arity() {
+						dml::FieldArity::Optional => {
+							quote!(v.map(|v| #ret).unwrap_or(crate::prisma::#model_name_snake::#relation_name_snake::unlink()))
+						}
+						_ => ret,
+					}
 				}
-				None => {
+				_ => {
 					quote!(crate::prisma::#model_name_snake::#field_name_snake::set(v))
 				}
 			};
@@ -143,28 +167,29 @@ impl CRDTSetParam {
 	}
 }
 
-pub fn generate(model: &Model) -> TokenStream {
-	let Model {
-		name_snake: model_name_snake,
-		..
-	} = model;
-
-	let set_params = model
+pub fn definition(model: &Model, datamodel: &Datamodel) -> TokenStream {
+	let model_name_snake = snake_ident(&model.name);
+	
+	let set_param_fields_iter = model
 		.fields
 		.iter()
-		.filter(|f| f.is_scalar_field())
-		.map(|f| SetParam::new(&*f, model));
+		.filter(|f| {
+			model.scalar_sync_id_fields(datamodel).any(|(id, _)| id.name() == f.name()) || 
+			f.is_scalar_field() && !(model.is_pk(f.name()) && !model.is_sync_id(f.name()))
+		});
+
+	let set_params = set_param_fields_iter
+		.clone()
+		.map(|f| SetParam::new(&*f, model, datamodel));
 
 	let set_param_variants = set_params.clone().map(|p| p.variant);
 	let set_param_into_match_arms = set_params.clone().map(|p| p.into_match_arm);
 	let set_param_into_crdt_match_arms = set_params.clone().map(|p| p.into_crdt_match_arm);
 	let set_param_from_pcr_set_impls = set_params.clone().map(|p| p.from_pcr_set_impl);
 
-	let crdt_set_params = model
-		.fields
-		.iter()
-		.filter(|f| f.is_scalar_field())
-		.map(|f| CRDTSetParam::new(&*f, model));
+	let crdt_set_params = set_param_fields_iter
+		.clone()
+		.map(|f| CRDTSetParam::new(&*f, model, datamodel));
 
 	let crdt_set_param_variants = crdt_set_params.clone().map(|p| p.variant);
 	let crdt_set_param_into_match_arms = crdt_set_params.clone().map(|p| p.into_match_arm);
@@ -176,7 +201,7 @@ pub fn generate(model: &Model) -> TokenStream {
 		}
 
 		impl SetParam {
-			pub async fn into_crdt(self) -> CRDTSetParam {
+			pub async fn into_crdt(self, client: &super::_prisma::PrismaCRDTClient) -> CRDTSetParam {
 				match self {
 					#(#set_param_into_crdt_match_arms),*
 				}

@@ -1,10 +1,7 @@
 use crate::generator::prelude::*;
 
 pub fn generate(model: &Model) -> TokenStream {
-	let Model {
-		name_snake: model_name_snake,
-		..
-	} = &model;
+	let model_name_snake = snake_ident(&model.name);
 
 	quote! {
 		#[derive(serde::Serialize, serde::Deserialize)]
@@ -16,7 +13,7 @@ pub fn generate(model: &Model) -> TokenStream {
 		}
 
 		pub struct Update<'a> {
-			client: &'a _prisma::PrismaCRDTClient,
+			client: &'a super::_prisma::PrismaCRDTClient,
 			where_param: crate::prisma::#model_name_snake::UniqueWhereParam,
 			set_params: Vec<SetParam>,
 		}

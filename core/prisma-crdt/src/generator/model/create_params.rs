@@ -1,23 +1,20 @@
 use crate::generator::prelude::*;
 
-pub fn generate(model: &Model) -> TokenStream {
+pub fn definition(model: &Model, datamodel: &Datamodel) -> TokenStream {
 	let required_scalar_fields = model
 		.fields
 		.iter()
 		.filter(|field| field.is_scalar_field() && field.required_on_create());
 
+	let mut scalar_sync_id_fields = model.scalar_sync_id_fields(datamodel);
+
 	let required_create_params = required_scalar_fields.clone().map(|field| {
-		let field_name_snake = &field.name_snake;
+		let field_name_snake = snake_ident(field.name());
 
 		let field_type = match field.field_type() {
 			dml::FieldType::Scalar(_, _, _) => field.type_tokens(),
-			dml::FieldType::Relation(info) => {
-				let relation_model_snake = format_ident!("{}", info.to.to_case(Case::Snake));
-
-				quote!(crate::prisma::#relation_model_snake::Link)
-			}
 			dml::FieldType::Enum(e) => {
-				let enum_name_pascal = format_ident!("{}", e.to_case(Case::Pascal));
+				let enum_name_pascal = pascal_ident(&e);
 
 				quote!(super::#enum_name_pascal)
 			}
@@ -29,10 +26,14 @@ pub fn generate(model: &Model) -> TokenStream {
 
 	let required_crdt_create_params = required_scalar_fields
 		.clone()
-		.filter(|f| !model.is_sync_id(f))
+		.filter(|f| {
+			scalar_sync_id_fields
+				.find(|sf| sf.0.name() == f.name())
+				.is_none()
+		})
 		.map(|field| {
-			let field_type = field.crdt_type_tokens();
-			let field_name_snake = &field.name_snake;
+			let field_type = field.crdt_type_tokens(datamodel);
+			let field_name_snake = snake_ident(field.name());
 
 			quote!(#field_name_snake: #field_type)
 		});
@@ -48,7 +49,7 @@ pub fn generate(model: &Model) -> TokenStream {
 		pub struct CRDTCreateParams {
 			#[serde(default, skip_serializing_if = "Vec::is_empty", rename = "_")]
 			pub _params: Vec<CRDTSetParam>,
-			#[serde(rename="_id")]
+			#[serde(flatten)]
 			pub _sync_id: SyncID,
 			#(pub #required_crdt_create_params),*
 		}

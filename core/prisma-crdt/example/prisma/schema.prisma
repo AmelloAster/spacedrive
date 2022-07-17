@@ -10,7 +10,7 @@ generator client {
 
 generator crdt {
     provider = "cargo prisma-crdt"
-    output   = "../src/_prisma-crdt.rs"
+    output   = "../src/prisma_crdt.rs"
 }
 
 /// @local
@@ -58,7 +58,7 @@ model RelationOperation {
     node    Node @relation(fields: [node_id], references: [local_id])
 }
 
-/// @local(id: id)
+/// @local(id: id, cache: All)
 model Node {
     local_id Int   @id @default(autoincrement())
     id       Bytes @unique
@@ -74,7 +74,7 @@ model Node {
     @@map("nodes")
 }
 
-/// @owned(owner: node, id: id)
+/// @owned(owner: node, id: id, cache: All)
 model Location {
     local_id Int   @id @default(autoincrement())
     id       Bytes @unique
@@ -89,7 +89,7 @@ model Location {
     @@map("locations")
 }
 
-/// @owned(owner: location)
+/// @owned(id: [location, id], owner: location)
 model FilePath {
     id Int
 
@@ -114,7 +114,7 @@ model FilePath {
 /// Existence is implied based on an equivalent file path existing, and could be
 /// created multiple times.
 
-/// @shared(id: cas_id, create: Atomic)
+/// @shared(id: cas_id, create: Atomic, cache: LRU)
 model File {
     local_id Int   @id @default(autoincrement())
     cas_id   Bytes @unique
@@ -127,7 +127,7 @@ model File {
     @@map("files")
 }
 
-/// @shared(id: id, create: Unique)
+/// @shared(id: id, create: Unique, cache: All)
 model Tag {
     local_id Int   @id @default(autoincrement())
     id       Bytes @unique

@@ -20,7 +20,7 @@ impl PrismaGenerator for PrismaCRDTGenerator {
 				node_id: Vec<u8>,
 				node_local_id: i32
 			) -> (
-				_prisma::prismaCRDTClient,
+				_prisma::PrismaCRDTClient,
 				::tokio::sync::mpsc::Receiver<::prisma_crdt::CRDTOperation>,
 			) {
 				let (tx, rx) = ::tokio::sync::mpsc::channel(64);

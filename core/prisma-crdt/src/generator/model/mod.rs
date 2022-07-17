@@ -8,14 +8,15 @@ mod update;
 
 use crate::generator::prelude::*;
 
-pub fn generate(model: &Model, datamodel: &Datamodel) -> TokenStream {
-	let Model { name_snake, .. } = model;
 
-	let set_param_enums = set_param::generate(model);
-	let sync_id_struct = sync_id::generate(model);
-	let create_params = create_params::generate(model);
+pub fn generate<'a>(model: &'a Model<'a>, datamodel: &Datamodel) -> TokenStream {
+	let name_snake = snake_ident(&model.name);
 
-	let create_struct = create::generate(model);
+	let set_param_enums = set_param::definition(model, datamodel);
+	let sync_id_struct = sync_id::definition(model, datamodel);
+	let create_params = create_params::definition(model, datamodel);
+
+	let create_struct = create::generate(model, datamodel);
 	let update_struct = update::generate(model);
 	let delete_struct = delete::generate(model);
 
@@ -31,9 +32,9 @@ pub fn generate(model: &Model, datamodel: &Datamodel) -> TokenStream {
 
 			#create_struct
 
-			#update_struct
+			// #update_struct
 
-			#delete_struct
+			// #delete_struct
 
 			#actions_struct
 		}

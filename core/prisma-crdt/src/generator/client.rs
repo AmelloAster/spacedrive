@@ -89,11 +89,9 @@ fn create_operation_fn() -> TokenStream {
 
 fn actions_accessors<'a>(datamodel: &'a Datamodel<'a>) -> impl Iterator<Item = TokenStream> + 'a {
 	datamodel.models.iter().map(|model| {
-		let Model {
-			name_snake, typ, ..
-		} = model.as_ref();
-
-		match typ {
+		let name_snake = snake_ident(&model.name);
+		
+		match &model.typ {
 			ModelType::Local { .. } => quote! {
 				pub fn #name_snake(&self) -> crate::prisma::#name_snake::Actions {
 					self.client.#name_snake()

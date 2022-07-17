@@ -1,16 +1,13 @@
 use crate::generator::prelude::*;
 
 pub fn generate(model: &Model) -> TokenStream {
-	let Model {
-		name_snake: model_name_snake,
-		..
-	} = model;
+	let model_name = snake_ident(&model.name);
 
 	quote! {
 		pub struct Delete<'a> {
-			client: &'a _prisma::PrismaCRDTClient,
-			where_param: crate::prisma::#model_name_snake::UniqueWhereParam,
-			with_params: Vec<crate::prisma::#model_name_snake::WithParam>,
+			client: &'a super::_prisma::PrismaCRDTClient,
+			where_param: crate::prisma::#model_name::UniqueWhereParam,
+			with_params: Vec<crate::prisma::#model_name::WithParam>,
 		}
 
 		impl<'a> Delete<'a> {
@@ -19,7 +16,7 @@ pub fn generate(model: &Model) -> TokenStream {
     			self
     		}
 
-    		pub async fn exec(self) -> Result<Option<crate::prisma::#model_name_snake::Data>, crate::prisma::QueryError> {
+    		pub async fn exec(self) -> Result<Option<crate::prisma::#model_name::Data>, crate::prisma::QueryError> {
 
     		}
 		}

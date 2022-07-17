@@ -6,17 +6,17 @@ pub use model::*;
 
 use crate::prelude::*;
 
-pub const INTERNAL_MODELS: &'static [&'static str] =
+pub const OPERATION_MODELS: &'static [&'static str] =
 	&["OwnedOperation", "SharedOperation", "RelationOperation"];
 
 pub struct Datamodel<'a> {
 	pub prisma: &'a dml::Datamodel,
-	pub models: Vec<Rc<Model<'a>>>,
+	pub models: Vec<Model<'a>>,
 }
 
 impl<'a> Datamodel<'a> {
-	pub fn resolve_relations(&self) {
-		self.models.iter().for_each(|m| m.resolve_relations(self));
+	pub fn model(&self, name: &str) -> Option<&'a Model> {
+		self.models.iter().find(|m| &m.name == name)
 	}
 }
 
@@ -26,16 +26,14 @@ impl<'a> TryFrom<&'a dml::Datamodel> for Datamodel<'a> {
 		let models = datamodel
 			.models
 			.iter()
-			.filter(|m| !INTERNAL_MODELS.contains(&m.name.as_str()))
-			.map(Model::new)
+			.filter(|m| !OPERATION_MODELS.contains(&m.name.as_str()))
+			.map(|m| Model::new(m, datamodel))
 			.collect::<Result<Vec<_>, _>>()?;
 
 		let datamodel = Self {
 			prisma: datamodel,
 			models,
 		};
-
-		datamodel.resolve_relations();
 
 		Ok(datamodel)
 	}
